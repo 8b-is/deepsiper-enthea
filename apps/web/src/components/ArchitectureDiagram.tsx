@@ -1,81 +1,118 @@
 import React, { useState } from 'react'
 
-interface ArchNodeData {
+interface OceanicZoneData {
   id: string
+  depth: string
   title: string
   subtitle: string
   description: string
   spec: string
+  color: string
 }
 
 export const ArchitectureDiagram: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string>('cordis')
 
-  const nodes: ArchNodeData[] = [
+  const zones: OceanicZoneData[] = [
     {
-      id: 'orchestration',
-      title: '1. Ingress & Clients',
-      subtitle: 'OpenCode / JSON-RPC / CLI / Web',
-      description: 'Dispatches task goals, benchmark datasets, and evaluation runs via typed JSON-RPC 2.0 or local CLI sessions.',
-      spec: 'Transport: WebSocket / StdIO / HTTP BFF\nSDK: @deepseek-ai/dsh-sdk\nProtocols: OpenCode Bridge, ACP Server',
+      id: 'epipelagic',
+      depth: '0 - 200m',
+      title: '1. Epipelagic Surface',
+      subtitle: 'OpenCode / JSON-RPC / CLI / Web Ingress',
+      description: 'The sunlit surface gateway. Handles high-speed duplex WebSocket frames, telemetry streaming, and IDE orchestrators.',
+      spec: 'Transport: WebSocket 2.0 / StdIO / HTTP BFF\nSDK: @deepseek-ai/dsh-sdk\nProtocols: OpenCode Bridge, ACP Automation Server',
+      color: '#38bdf8',
     },
     {
       id: 'cordis',
-      title: '2. Cordis Kernel',
-      subtitle: 'Dependency Injection & Fibers',
-      description: 'The spatiotemporal plugin kernel. Manages service lifecycle, reactive event buses, and isolated capability registration with zero global coupling.',
-      spec: 'Engine: Vendored Cordis Framework\nPrimitives: Context, Service, Event, Effect\nLifecycle: Isolated Disposer Fibers',
+      depth: '200 - 1,000m',
+      title: '2. Mesopelagic Twilight',
+      subtitle: 'Cordis Kernel & Spatiotemporal Fibers',
+      description: 'The core reactive engine. Dispatches lifecycle fibers, resolves dependency graph injection, and manages zero-coupling event streams.',
+      spec: 'Engine: Vendored Cordis Kernel\nPrimitives: Context, Service, Event, Effect\nLifecycle: Isolated Disposer Fibers',
+      color: '#6366f1',
     },
     {
-      id: 'capabilities',
-      title: '3. Capability Seams',
-      subtitle: 'Tools, Sandboxes, LLM Seams',
-      description: 'Composable seams separating Service Definitions, Service Providers, and Consumers (Landlock, Bash, Subprocess, FS, Memory).',
-      spec: 'Isolation: Linux Landlock + macOS Sandbox\nSeams: dsh-shell, dsh-fs, dsh-lsp, dsh-web\nPolicy: Granular Permission Gates',
+      id: 'bathypelagic',
+      depth: '1,000 - 4,000m',
+      title: '3. Bathypelagic Midnight',
+      subtitle: 'Landlock Pressure Sandboxes & Seams',
+      description: 'Granular capability seams isolating bash execution, subprocess process-trees, and filesystem policies beneath kernel-enforced hulls.',
+      spec: 'Isolation: Linux Landlock ABI v3 + macOS Sandbox\nSeams: dsh-shell, dsh-fs, dsh-lsp, dsh-web\nSecurity: Zero-Escapes Boundary',
+      color: '#06b6d4',
     },
     {
-      id: 'eval',
-      title: '4. Sovereign Eval Leaf',
-      subtitle: 'EntheAI & Benchmarking Engine',
-      description: 'Executes trajectory scoring, rubric checking, tool schema adherence, and local model parameter alignment.',
-      spec: 'Plugins: tool-eval, eval-entheai\nTelemetry: SQLite monotonically-versioned logs\nMetrics: Step count, Token efficiency, Rubric score',
+      id: 'hadal',
+      depth: '4,000 - 11,000m',
+      title: '4. Hadal Trench Abyss',
+      subtitle: 'EntheAI Sovereign Inference & Eval',
+      description: 'The sovereign deep. Air-gapped self-hosted model weights, deterministic trajectory scoring, and rubric verification with total data sovereignty.',
+      spec: 'Sovereignty: EntheAI Sovereign Inference Nodes\nEval Plugins: tool-eval, eval-entheai\nTelemetry: SQLite Monotonic Schema Logs',
+      color: '#10b981',
     },
   ]
 
-  const defaultNode: ArchNodeData = nodes[0] as ArchNodeData
-  const activeNode: ArchNodeData = nodes.find(n => n.id === selectedId) ?? defaultNode
+  const defaultZone: OceanicZoneData = zones[1] as OceanicZoneData
+  const activeZone: OceanicZoneData = zones.find(z => z.id === selectedId) ?? defaultZone
 
   return (
     <section id="architecture" className="arch-section">
       <div className="container">
         <div className="section-header">
-          <div className="section-tag">System Topology</div>
-          <h2 className="section-title">Cordis Plugin Architecture</h2>
+          <div className="section-tag">Oceanic Depth Topology</div>
+          <h2 className="section-title">Deep Subsea Architecture Layers</h2>
         </div>
 
         <div className="arch-container">
           <div className="arch-flow">
-            {nodes.map(node => (
+            {zones.map(zone => (
               <div
-                key={node.id}
-                className={`arch-node ${node.id === selectedId ? 'active' : ''}`}
-                onClick={() => setSelectedId(node.id)}
+                key={zone.id}
+                className={`arch-node ${zone.id === selectedId ? 'active' : ''}`}
+                onClick={() => setSelectedId(zone.id)}
+                style={{
+                  borderLeft: `4px solid ${zone.color}`,
+                }}
               >
-                <div className="arch-node-title">{node.title}</div>
-                <div className="arch-node-meta">{node.subtitle}</div>
+                <div style={{ fontSize: '0.6875rem', color: zone.color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                  DEPTH: {zone.depth}
+                </div>
+                <div className="arch-node-title">{zone.title}</div>
+                <div className="arch-node-meta">{zone.subtitle}</div>
               </div>
             ))}
           </div>
 
-          <div className="arch-detail-view">
-            <div style={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 8, fontSize: '0.9375rem' }}>
-              {activeNode.title} — {activeNode.subtitle}
+          <div className="arch-detail-view" style={{ borderColor: activeZone.color }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '1rem' }}>
+                {activeZone.title} — {activeZone.subtitle}
+              </div>
+              <span style={{
+                background: 'rgba(255,255,255,0.06)',
+                color: activeZone.color,
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.75rem',
+              }}>
+                ZONE DEPTH: {activeZone.depth}
+              </span>
             </div>
+
             <p style={{ color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-              {activeNode.description}
+              {activeZone.description}
             </p>
-            <pre style={{ color: 'var(--accent-cyan)', background: '#050507', padding: '12px 16px', borderRadius: 6, overflowX: 'auto' }}>
-              {activeNode.spec}
+
+            <pre style={{
+              color: activeZone.color,
+              background: '#040914',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              padding: '14px 18px',
+              borderRadius: 8,
+              overflowX: 'auto',
+            }}>
+              {activeZone.spec}
             </pre>
           </div>
         </div>
