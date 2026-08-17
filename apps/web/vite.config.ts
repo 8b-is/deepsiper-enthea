@@ -82,6 +82,16 @@ export default defineConfig({
   plugins: [react()],
   build: {
     sourcemap: true,
+    // Two chunks legitimately exceed vite's 500 kB default and are not worth
+    // splitting further. `vendor` (≈745 kB min / 181 kB gzip) is the stable,
+    // always-cached render-family chunk (KaTeX + Shiki core + the three boot
+    // grammars) — splitting it would only move bytes, not cut transfer, and
+    // break the single-chunk cache contract. `langs/cpp` (≈638 kB min /
+    // 47 kB gzip) is the single largest on-demand grammar, fetched only when
+    // a client renders C++. Gzip is the real transfer cost and both sit well
+    // under 200 kB, so raise the ceiling past the largest intended chunk; any
+    // future chunk past 800 kB still warns.
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
         // Output layout: the two main chunks stay at assets/ root; lazy
