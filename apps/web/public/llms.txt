@@ -1,0 +1,44 @@
+# Deepsiper Enthea (deepsiper.vaked.dev)
+
+> Sovereign, agent-driven LLM evaluation harness forked from deepseek-ai/deepseek-harness (dsh 0.1.0-rc.7). Built for multi-model benchmark hydrodynamics, air-gapped EntheAI reasoning, Landlock isolation, and JSON-RPC 2.0 automation.
+
+## Project Information
+- **Domain:** https://deepsiper.vaked.dev
+- **Repository:** https://github.com/8b-is/deepsiper-enthea
+- **Organization:** 8b-is (https://8b.is)
+- **Upstream:** deepseek-ai/deepseek-harness
+- **License:** MIT License
+
+## Core Capabilities
+- **Sovereign Backend:** Air-gapped integration with EntheAI reasoning nodes with 0% external cloud telemetry leakage.
+- **Evaluation Plugins:** Pluggable evaluation suites including `tool-eval`, `eval-entheai`, and multi-turn trajectory perturbation scoring.
+- **Kernel Isolation:** Linux Landlock ABI v3 and macOS Sandbox pressure hulls for non-escapable process boundaries.
+- **JSON-RPC SDK & OpenCode Bridge:** Full duplex RPC gateway for driving evaluation loops and agent tasks programmatically.
+- **Poly-Pod Model Mesh:** Unified provider interface for DeepSeek R1/V3, Gemini 2.5, local vLLM/Ollama, and OpenAI-compatible backends.
+
+## Foundation & Build Architecture
+- **Language:** TypeScript 6 under strict ESM mode (`"type": "module"`)
+- **Bundler:** Rolldown / tsdown for sub-second package compilation
+- **Testing:** Vitest 4 with strict 100% coverage gates on packages
+- **Linter & Cleanliness:** Oxlint AST verification and JSCPD clone detection
+- **Plugin Micro-Kernel:** Vendored Cordis framework with reactive dependency injection and spatiotemporal lifecycle fibers
+
+## Quick Start Commands
+```bash
+# Clone and install
+git clone https://github.com/8b-is/deepsiper-enthea.git
+cd deepsiper-enthea
+pnpm install && pnpm build
+
+# Run sovereign evaluation task
+pnpm dsh --profile headless "Analyze repository security posture and evaluate tool coverage"
+
+# Start Web UI & Console
+pnpm dsh web
+```
+
+## Relevant Documentation Links
+- Full LLM Context: https://deepsiper.vaked.dev/llms-full.txt
+- Agent Rules & Integration: https://deepsiper.vaked.dev/AGENTS.md
+- Security Policy: https://deepsiper.vaked.dev/.well-known/security.txt
+- GitHub Source: https://github.com/8b-is/deepsiper-enthea

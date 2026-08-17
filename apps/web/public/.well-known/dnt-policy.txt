@@ -1,0 +1,7 @@
+# Sovereign Do Not Track (DNT) & Telemetry Policy
+# deepsiper.vaked.dev
+
+Deepsiper Enthea respects user privacy and data sovereignty by default:
+1. Zero Telemetry: No user prompts, code, model weights, or benchmark transcripts are transmitted to external servers.
+2. Local Persistence: All session state is stored exclusively in the user's local filesystem / SQLite database.
+3. No Third-Party Trackers: This web application contains zero third-party tracking scripts, analytics cookies, or invasive telemetry beacons.

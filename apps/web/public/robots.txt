@@ -1,0 +1,23 @@
+# robots.txt for https://deepsiper.vaked.dev
+User-agent: *
+Allow: /
+
+# LLM Crawler Policies
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+# Canonical Sitemap & LLM index
+Sitemap: https://deepsiper.vaked.dev/sitemap.xml
+LLMs-Txt: https://deepsiper.vaked.dev/llms.txt

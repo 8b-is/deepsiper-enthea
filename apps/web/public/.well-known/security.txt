@@ -1,0 +1,7 @@
+Contact: mailto:security@8b.is
+Expires: 2028-12-31T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://deepsiper.vaked.dev/.well-known/security.txt
+Policy: https://github.com/8b-is/deepsiper-enthea/blob/master/SECURITY.md
+Acknowledgments: https://github.com/8b-is/deepsiper-enthea/graphs/contributors
+Hiring: https://8b.is/careers

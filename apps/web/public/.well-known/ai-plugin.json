@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Deepsiper Enthea",
+  "name_for_model": "deepsiper_enthea",
+  "description_for_human": "Sovereign, agent-driven LLM evaluation harness forked from deepseek-harness.",
+  "description_for_model": "Orchestrate sovereign LLM benchmarks, multi-turn tool evaluations, and Cordis plugin suites with air-gapped isolation.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://deepsiper.vaked.dev/llms.txt"
+  },
+  "logo_url": "https://deepsiper.vaked.dev/og-image.png",
+  "contact_email": "security@8b.is",
+  "legal_info_url": "https://github.com/8b-is/deepsiper-enthea/blob/master/LICENSE"
+}

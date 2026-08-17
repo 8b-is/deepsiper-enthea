@@ -1,0 +1,47 @@
+# Deepsiper Enthea — Full Technical Architecture & Specification
+
+## Table of Contents
+1. Executive Summary & Sovereignty Philosophy
+2. Kernel Architecture & Cordis Dependency Injection
+3. Capability Seams: Definition, Provider, Consumer
+4. Isolation, Sandboxing & Linux Landlock Hulls
+5. Evaluation Engine: tool-eval, eval-entheai, Rubrics
+6. JSON-RPC 2.0 Protocol & OpenCode Interoperability
+7. Build System, Type Contracts & Testing Policy
+
+---
+
+### 1. Executive Summary & Sovereignty Philosophy
+Deepsiper Enthea (`deepsiper-enthea`) is a sovereign, agent-driven LLM evaluation harness forked from `deepseek-ai/deepseek-harness` (dsh 0.1.0-rc.7). Unlike traditional cloud-dependent evaluation platforms, Deepsiper Enthea is engineered from the ground up for air-gapped enclaves, self-hosted reasoning clusters (such as EntheAI), and strict multi-turn agent trajectory verification without telemetry leakage.
+
+### 2. Kernel Architecture & Cordis Dependency Injection
+Everything in Deepsiper Enthea is a Cordis plugin:
+- **Spatiotemporal Fibers:** Every component lifecycle is isolated in a disposable fiber context. When a plugin or tool is unloaded, all registered event listeners, commands, and hooks are automatically detached without memory residue.
+- **Dependency Resolution:** Plugins declare explicit requirements via `inject` arrays. The loader resolves topological order dynamically.
+- **No Hardcoded Tunables:** All runtime behaviors are driven through validated `cordis.yml` configs or typed schema options.
+
+### 3. Capability Seams: Definition, Provider, Consumer
+A capability seam comprises three distinct, decoupled roles:
+1. **Service Definition:** Declares the abstract TypeScript contract and method signatures (e.g., `ShellExecutor`, `FileSystem`, `LLMProvider`).
+2. **Service Provider:** Implements the concrete transport or backend (e.g., `StubShellExecutor`, `LocalBashProvider`, `EntheAIInferenceProvider`).
+3. **Consumer:** Consumes the capability to expose model-visible tools or orchestrations without coupling to the provider implementation.
+
+### 4. Isolation, Sandboxing & Linux Landlock Hulls
+- Linux Landlock ABI v3: Restricts filesystem path access, execution privileges, and network boundaries at the kernel level for executing LLM-generated code.
+- macOS Sandbox-exec / Landlock Addon: Provides zero-escapes guarantees during evaluation tests.
+
+### 5. Evaluation Engine: tool-eval, eval-entheai, Rubrics
+- `tool-eval`: Pluggable benchmark suite testing model tool use, parameter validation, schema compliance, and recovery from runtime errors.
+- `eval-entheai`: Specialized rubric scoring for reasoning depth, chain-of-thought fidelity, and sovereign parameter alignment.
+- Deterministic Replays: Keyless snapshot testing allows replaying complete agent loop transcripts without live API dependencies.
+
+### 6. JSON-RPC 2.0 Protocol & OpenCode Interoperability
+- **Transport:** Full-duplex WebSocket and StdIO JSON-RPC 2.0.
+- **SDK:** Available in TypeScript (`@deepseek-ai/dsh-sdk`) and Python (`python/`).
+- **OpenCode Bridge:** Allows automated IDE agents to orchestrate evaluation passes and inspect monotonic SQLite telemetry streams.
+
+### 7. Build System, Type Contracts & Testing Policy
+- Strict TypeScript 6 with `noImplicitAny` and Project References (`tsconfig.host.json`, `tsconfig.client.json`).
+- Bundled via Rolldown / tsdown with ESM module output.
+- Vitest 4 with per-file 100% coverage gates on core packages.
+- Zero cyclic dependencies and AST-level linting via Oxlint.
