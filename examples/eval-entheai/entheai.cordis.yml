@@ -1,0 +1,54 @@
+# dsh --patch overlay for `--profile headless`: route the one-shot agent to a
+# self-hosted OpenAI-compatible backend through the llm-pi-ai hand-declared
+# route, pin the default model selection to it, and pin a deterministic
+# eval persona. Applied as a sibling patch list over the composed bundles
+# (dsh-base + dsh-headless), so each entry targets a row by id and restates
+# its complete config — a patch replaces a row's whole `config`, never merges.
+
+# The pi-ai adapter row is already mounted by the dsh-base bundle, dormant
+# with zero routes; this overlay supplies its provider profiles. The route key
+# `entheai` is the provider name agent-default-model below selects. The key
+# resolves per request through ENTHEAI_API_KEY (the credentials seam / env);
+# the endpoint comes from ENTHEAI_BASE_URL. The loader evaluates `!!js`
+# expressions, not shell ${VAR} interpolation — the expression below is the
+# YAML spelling of ${ENTHEAI_BASE_URL:-http://127.0.0.1:8000/v1}.
+- id: llm-pi-ai
+  config:
+    providers:
+      entheai:
+        displayName: Entheai
+        apiKeyEnv: ENTHEAI_API_KEY
+        api: openai-completions
+        baseURL: !!js "process.env.ENTHEAI_BASE_URL ?? 'http://127.0.0.1:8000/v1'"
+        models:
+          - id: entheai-ultra
+            contextWindow: 131072
+
+# The headless runner creates its agent from
+# agentDefaultModel.currentSelection(), so pointing this row at the entheai
+# route is what makes the whole run — task turn, title, retries — use the
+# self-hosted backend. `reasoningEffort` stays unset: provider default.
+- id: agent-default-model
+  config:
+    provider: entheai
+    model: entheai-ultra
+
+# Deployment persona: one-turn deterministic answer, no tools, no prose. The
+# {{model}} placeholder is filled from the selection above, like the shipped
+# headless persona.
+- id: system-prompt
+  config:
+    persona: >-
+      You are eval-entheai, a deterministic code-answer agent powered by the
+      {{model}} model.
+
+      Answer the task with exactly the requested output and nothing else. Do
+      not call any tool, do not explain, and do not wrap the answer in prose
+      or code fences.
+
+# Pin the tool presentation so an exported DSH_TOOLS_MODE cannot change the
+# request shape mid-eval. `native` is the schema default; the persona keeps
+# the model from calling any of them.
+- id: tools
+  config:
+    mode: native
