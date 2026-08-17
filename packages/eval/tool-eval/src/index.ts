@@ -14,11 +14,10 @@ import z from '@deepseek-ai/schemastery'
 import { defineTool, TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
 import type { ShellRunResult } from '@deepseek-ai/dsh-shell'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
-import type { BenchmarkConfig, Config, EvalCaseArgs, EvalCaseResult } from './types.ts'
-// The `Config` type face re-exports onto the package root (its one home is
-// src/types.ts); the emitted index.d.ts keeps the merge for aggregate
-// consumers, mirroring the todo tool's type outlet.
-export type * from './types.ts'
+import type { BenchmarkConfig, ToolEvalConfig, EvalCaseArgs, EvalCaseResult } from './types.ts'
+// Re-export types for aggregate consumers; the Config type is renamed to
+// ToolEvalConfig to avoid clashing with the schemastery Config const.
+export type { BenchmarkConfig, ToolEvalConfig, EvalCaseArgs, EvalCaseResult } from './types.ts'
 
 export const name = 'tool-eval'
 export const inject = ['tools', 'shell']
@@ -34,7 +33,7 @@ const DEFAULT_EXEC = 'python3'
 const MAX_GRADER_DETAIL_CHARS = 8192
 
 /** Schemastery configuration for the eval tool consumer. */
-export const Config: z<Config> = z.object({
+export const Config: z<ToolEvalConfig> = z.object({
   benchmarks: z.dict(z.object({
     grader: z.string().required(),
     exec: z.string().default(DEFAULT_EXEC),
@@ -60,7 +59,7 @@ function resolveGraderPath(grader: string): string {
  * @returns the shell-single-quoted form.
  */
 function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`
+  return `'${value.replace(/'/g, '\'\\\'\'')}'`
 }
 
 /**

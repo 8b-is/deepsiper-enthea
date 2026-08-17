@@ -28,7 +28,7 @@ export interface BenchmarkConfig {
 }
 
 /** Model-facing eval-tool configuration: the deployment's benchmark set. */
-export interface Config {
+export interface ToolEvalConfig {
   /** Benchmark id → grader configuration; at least one is required. */
   benchmarks: Record<string, BenchmarkConfig>
 }
