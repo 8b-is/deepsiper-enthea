@@ -25,6 +25,7 @@ export default defineConfig(({ env }) => {
     fixedExtension: false,
     dts: false,
     clean: false,
+    deps: { neverBundle: [/^@deepseek-ai\//] },
     plugins: client ? [] : [typertPlugin({ mode: 'workspace', faces: ['host'] })],
   }
 })
