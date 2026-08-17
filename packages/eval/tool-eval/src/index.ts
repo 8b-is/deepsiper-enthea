@@ -87,7 +87,7 @@ function graderDetail(result: ShellRunResult): string {
  * @param ctx - registrant context carrying the tool registry and the shell executor.
  * @param config - the deployment's benchmark set.
  */
-export function apply(ctx: Context, config: Config): void {
+export function apply(ctx: Context, config: ToolEvalConfig): void {
   const ids = Object.keys(config.benchmarks)
   if (ids.length === 0) {
     throw new Error('tool-eval: no benchmarks configured — add at least one benchmark to `benchmarks`')
