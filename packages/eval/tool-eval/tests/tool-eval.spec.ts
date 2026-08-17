@@ -9,7 +9,7 @@ import { ShellExecutor } from '@deepseek-ai/dsh-shell'
 import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunResult } from '@deepseek-ai/dsh-shell'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
-import type { ToolEvalConfig as Config, EvalCaseArgs } from '../src/types.ts'
+import type { ToolEvalConfig as Config } from '../src/types.ts'
 import * as tool from '../src/index.ts'
 
 const testToolSignal = new AbortController().signal
@@ -74,7 +74,7 @@ async function setup(config: Config) {
 }
 
 let callCounter = 0
-function callEval(ctx: Context, args: EvalCaseArgs) {
+function callEval(ctx: Context, args: unknown) {
   return ctx.tools.execute({
     signal: testToolSignal,
     callId: CallId(`call-${++callCounter}`),
