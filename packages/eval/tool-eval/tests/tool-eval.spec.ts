@@ -9,7 +9,7 @@ import { ShellExecutor } from '@deepseek-ai/dsh-shell'
 import type { ShellExecRequest, ShellExecSpec, ShellProcess, ShellRunResult } from '@deepseek-ai/dsh-shell'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
-import type { ToolEvalConfig as Config } from '../src/types.ts'
+import type { ToolEvalConfig as Config, EvalCaseArgs } from '../src/types.ts'
 import * as tool from '../src/index.ts'
 
 const testToolSignal = new AbortController().signal
@@ -74,7 +74,7 @@ async function setup(config: Config) {
 }
 
 let callCounter = 0
-function callEval(ctx: Context, args: unknown) {
+function callEval(ctx: Context, args: EvalCaseArgs) {
   return ctx.tools.execute({
     signal: testToolSignal,
     callId: CallId(`call-${++callCounter}`),
@@ -92,10 +92,10 @@ describe('dsh-tool-eval', () => {
     const { ctx } = await setup(config())
     const schema = ctx.tools.schemas().find(s => s.name === 'eval_case')
     expect(schema).toBeDefined()
-    const props = (schema!.parameters as { properties?: Record<string, unknown> }).properties ?? {}
+    const props = (schema!.parameters as { properties?: Record<string, { type?: string; description?: string }> }).properties ?? {}
     expect(Object.keys(props).sort()).toEqual(['benchmark', 'output'])
-    expect((props.benchmark as { type?: string }).type).toBe('string')
-    expect((props.output as { type?: string }).type).toBe('string')
+    expect(props.benchmark?.type).toBe('string')
+    expect(props.output?.type).toBe('string')
   })
 
   it('returns the canonical pass result and runs the grader with the output on stdin', async () => {
@@ -266,7 +266,7 @@ describe('dsh-tool-eval', () => {
     expect(tool.inject).toEqual(['tools', 'shell'])
 
     const loader = Object.create(Loader.prototype) as Loader
-    const unwrapped = loader.unwrapExports(tool) as Record<string, unknown>
+    const unwrapped = loader.unwrapExports(tool) as typeof tool
     expect(unwrapped).toBe(tool)
     expect(unwrapped.name).toBe('tool-eval')
     expect(unwrapped.inject).toEqual(['tools', 'shell'])
