@@ -1,74 +1,101 @@
-# DeepSeek Harness
+# Deepsiper Enthea
+
+[![Version](https://img.shields.io/badge/version-0.1.0--rc.7-blue.svg)](package.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Org](https://img.shields.io/badge/org-8b--is-purple.svg)](https://github.com/8b-is)
+[![Upstream](https://img.shields.io/badge/upstream-deepseek--harness-lightgrey.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
 [English](README.md) | 中文
 
-DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。
+**Deepsiper Enthea** (`deepsiper-enthea`) 是一个基于 [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) (`dsh` 0.1.0-rc.7) 分叉的主权、智能体驱动型 LLM 评估 Harness。它为现代大语言模型评测工作流提供了多模型编排、私有主权后端集成、Cordis 插件管道与 JSON-RPC 自动化支持。
 
-它采用**一切皆插件**的架构，并由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://github.com/cordiverse/paper)。
+---
 
-## 开发者预览
+## Fork 核心特性
 
-DeepSeek Harness 目前处于 _开发者预览_ 阶段，正在快速迭代。**未来将出现破坏兼容性的变更。**
+- **主权后端**: 原生集成 [EntheAI](https://github.com/8b-is) 与自托管推理节点，保障数据完全驻留与零泄漏。
+- **评测插件系统**: 可插拔的评测套件，支持 `tool-eval`、`eval-entheai` 以及自定义基准评测。
+- **OpenCode 桥接与 JSON-RPC SDK**: 支持通过 OpenCode 或外部编排系统以编程式驱动评测与智能体循环。
+- **多模型统一编排**: 统一支持 DeepSeek、Gemini、本地部署模型及任意 OpenAI 兼容接口。
+- **细粒度沙箱与遥测**: 原生 Landlock 隔离机制、确定性重放与结构化会话持久化。
 
-## 运行
+---
 
-### 通过 `npm` 运行
+## 架构与技术栈
 
-安装 `Node.js`，然后运行：
+Deepsiper Enthea 核心遵循 **一切皆插件** 的 [Cordis](https://github.com/cordiverse/cordis) 架构。
 
-```sh
-npx @deepseek-ai/dsh web
+```
+                  ┌─────────────────────────────────────┐
+                  │    OpenCode / JSON-RPC / CLI / Web   │
+                  └──────────────────┬──────────────────┘
+                                     │
+                  ┌──────────────────▼──────────────────┐
+                  │      Cordis Kernel (Context & DI)   │
+                  └────┬──────────────┬───────────────┬─┘
+                       │              │               │
+        ┌──────────────▼─────┐ ┌──────▼──────┐ ┌──────▼──────────────┐
+        │     主权后端       │ │   评测插件   │ │    沙箱工具隔离    │
+        │  (EntheAI / Local) │ │ (tool-eval) │ │ (Landlock / Bash)   │
+        └────────────────────┘ └─────────────┘ └─────────────────────┘
 ```
 
-该命令会启动 Web UI，默认地址为 `http://127.0.0.1:3080`。详见 [Web UI 指南](docs/user/guide/index.md)。
+- **运行时与语言:** Node.js `>=22.19.0` 或 `>=24.0.0`, TypeScript 6 (严格 ESM 模式)
+- **打包与构建:** `tsdown` / `rolldown` + `tsc` 工程引用
+- **测试与代码质量:** Vitest 4, Oxlint, JSCPD 重复检测
+- **插件内核:** 内置 Cordis 框架（时空可组合性范式）
 
-### 从源码运行
+---
 
-如需从仓库源码运行：
+## 快速上手
+
+### 环境准备
+- Node.js `^22.19.0 || >=24.0.0`
+- `pnpm >= 11.0.0`
+
+### 安装与构建
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
+# 克隆仓库
+git clone https://github.com/8b-is/deepsiper-enthea.git
+cd deepsiper-enthea
+
+# 安装依赖并构建
 pnpm install
-pnpm run build
+pnpm build
+```
+
+### 运行任务
+
+```sh
+# 无头模式下执行任务
+pnpm dsh --profile headless "分析仓库安全态势并评估工具覆盖度"
+
+# 启动交互式 Web 控制台与面板
 pnpm dsh web
 ```
 
-## 社区与支持
+---
 
-- 欢迎通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
-- 为你的插件仓库添加 [`dsh-plugin`](https://github.com/topics/dsh-plugin) 话题，便于被发现。
-- 欢迎加入 DeepSeek Harness 企微群：扫码添加企微小助手并填写入群问卷，完成后小助手会邀请你入群。
+## 文档
 
-<table>
-  <thead>
-    <tr>
-      <th align="center">企微小助手</th>
-      <th align="center">入群问卷</th>
-      <th align="center">微信公众号</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><img src="assets/community-wecom-assistant.png" alt="DeepSeek Harness 企微小助手二维码" width="180" height="180"></td>
-      <td align="center"><a href="https://trtgsjkv6r.feishu.cn/share/base/form/shrcnIt5twSVdLGD52KJBckGCgg"><img src="assets/community-wecom-survey.png" alt="DeepSeek Harness 入群问卷二维码" width="180" height="180"></a></td>
-      <td align="center"><img src="assets/community-wechat-official-account.png" alt="DeepSeek Harness 团队微信公众号二维码" width="180" height="180"></td>
-    </tr>
-  </tbody>
-</table>
+- [快速入门](docs/getting-started.md)
+- [架构与插件体系](docs/architecture.md)
+- [开发自定义插件](docs/plugins/writing-plugins.md)
+- [JSON-RPC SDK](docs/sdk/json-rpc.md)
+- [主权后端设置 (EntheAI)](docs/backends/entheai.md)
+- [设计系统规范](docs/design-system.md)
 
-## 参与贡献
+---
 
-参见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+## 社区与生态
 
-## 开发
+- **Fork 地址:** [8b-is/deepsiper-enthea](https://github.com/8b-is/deepsiper-enthea)
+- **上游仓库:** [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
+- **组织:** [8b-is](https://github.com/8b-is)
 
-请先阅读[开发指南](docs/development.md)与[架构文档](docs/architecture.md)。
-
-面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
+---
 
 ## 许可证
 
-[MIT](LICENSE)
-
-第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[MIT](LICENSE) © 8b-is & DeepSeek AI 贡献者。第三方依赖许可说明参见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

@@ -412,6 +412,99 @@ const reference = [
   }]),
 ]
 
+const sovereignAndEval = mirroredPages([
+  {
+    source: 'docs/getting-started.md',
+    route: 'guide/getting-started.md',
+    contentLocale: 'en-US',
+    label: { root: '快速开始 (Deepsiper)', en: 'Getting Started (Deepsiper)' },
+    sidebar: { root: 'zh-guide', en: 'en-guide' },
+    section: { root: '入门', en: 'Guide' },
+    order: 0,
+  },
+  {
+    source: 'docs/design-system.md',
+    route: 'guide/design-system.md',
+    contentLocale: 'en-US',
+    label: { root: '设计系统', en: 'Design System' },
+    sidebar: { root: 'zh-guide', en: 'en-guide' },
+    section: { root: '入门', en: 'Guide' },
+    order: 3,
+  },
+  {
+    source: 'docs/plugins/writing-plugins.md',
+    route: 'develop/plugins/writing-plugins.md',
+    contentLocale: 'en-US',
+    label: { root: '编写自定义插件', en: 'Writing Custom Plugins' },
+    sidebar: { root: 'zh-develop', en: 'en-develop' },
+    section: { root: '实战', en: 'Practice' },
+    order: 3,
+  },
+  {
+    source: 'docs/plugins/tool-eval.md',
+    route: 'develop/plugins/tool-eval.md',
+    contentLocale: 'en-US',
+    label: { root: '工具评测 (tool-eval)', en: 'Tool Eval (tool-eval)' },
+    sidebar: { root: 'zh-develop', en: 'en-develop' },
+    section: { root: '实战', en: 'Practice' },
+    order: 4,
+  },
+  {
+    source: 'docs/plugins/eval-entheai.md',
+    route: 'develop/plugins/eval-entheai.md',
+    contentLocale: 'en-US',
+    label: { root: 'EntheAI 主权评测', en: 'EntheAI Sovereign Eval' },
+    sidebar: { root: 'zh-develop', en: 'en-develop' },
+    section: { root: '实战', en: 'Practice' },
+    order: 5,
+  },
+  {
+    source: 'docs/sdk/json-rpc.md',
+    route: 'guide/sdk/json-rpc.md',
+    contentLocale: 'en-US',
+    label: { root: 'JSON-RPC SDK & 桥接', en: 'JSON-RPC SDK & Bridge' },
+    sidebar: { root: 'zh-guide', en: 'en-guide' },
+    section: { root: 'SDK', en: 'SDK' },
+    order: 2,
+  },
+  {
+    source: 'docs/sdk/headless.md',
+    route: 'guide/sdk/headless.md',
+    contentLocale: 'en-US',
+    label: { root: '无头 CLI 模式', en: 'Headless CLI Mode' },
+    sidebar: { root: 'zh-guide', en: 'en-guide' },
+    section: { root: 'SDK', en: 'SDK' },
+    order: 3,
+  },
+  {
+    source: 'docs/backends/entheai.md',
+    route: 'reference/backends/entheai.md',
+    contentLocale: 'en-US',
+    label: { root: 'EntheAI 主权后端', en: 'EntheAI Sovereign Backend' },
+    sidebar: { root: 'zh-reference', en: 'en-reference' },
+    section: { root: '概念', en: 'Concepts' },
+    order: 5,
+  },
+  {
+    source: 'docs/backends/openai-compatible.md',
+    route: 'reference/backends/openai-compatible.md',
+    contentLocale: 'en-US',
+    label: { root: 'OpenAI 兼容端点', en: 'OpenAI-Compatible Endpoints' },
+    sidebar: { root: 'zh-reference', en: 'en-reference' },
+    section: { root: '概念', en: 'Concepts' },
+    order: 6,
+  },
+  {
+    source: 'docs/deployment.md',
+    route: 'guide/deployment.md',
+    contentLocale: 'en-US',
+    label: { root: '部署指南', en: 'Deployment Guide' },
+    sidebar: { root: 'zh-guide', en: 'en-guide' },
+    section: { root: '入门', en: 'Guide' },
+    order: 4,
+  },
+])
+
 /** A sidebar group, matched to pages by `label`. */
 export interface DocsSection {
   /** Group heading, equal to the `section` field of every page it holds. */
@@ -473,6 +566,7 @@ export function sectionSpec(locale: DocsLocale, label: string): DocsSection & { 
 /** Every canonical page published by the documentation website. */
 export const docsPages: DocsPage[] = [
   ...homeAndGuide,
+  ...sovereignAndEval,
   ...develop,
   ...cordisTutorial,
   ...cordisPrimerReference,

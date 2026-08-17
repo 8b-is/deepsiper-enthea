@@ -4,19 +4,8 @@ import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
-const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
-  + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
-  + 'For client-plugin HMR, run `pnpm dsh web` together with `pnpm run dev:web`.'
 
-/** Fail before a Vite dev or preview server can expose the boot-manifest-free shell. */
-function rejectStandaloneServe(): Plugin {
-  return {
-    name: 'dsh-reject-standalone-web-serve',
-    config(_config, env) {
-      if (env.command === 'serve') throw new Error(STANDALONE_ERROR)
-    },
-  }
-}
+
 
 /**
  * Vendor-chunk membership, by exact npm package name — the heavy render
@@ -90,7 +79,7 @@ function npmPackageOf(id: string): string | undefined {
 }
 
 export default defineConfig({
-  plugins: [rejectStandaloneServe(), react()],
+  plugins: [react()],
   build: {
     sourcemap: true,
     rollupOptions: {

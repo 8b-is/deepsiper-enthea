@@ -1,57 +1,101 @@
-# DeepSeek Harness
+# Deepsiper Enthea
+
+[![Version](https://img.shields.io/badge/version-0.1.0--rc.7-blue.svg)](package.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Org](https://img.shields.io/badge/org-8b--is-purple.svg)](https://github.com/8b-is)
+[![Upstream](https://img.shields.io/badge/upstream-deepseek--harness-lightgrey.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
 English | [中文](README.zh.md)
 
-DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
+**Deepsiper Enthea** (`deepsiper-enthea`) is a sovereign, agent-driven LLM evaluation harness forked from [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) (`dsh` 0.1.0-rc.7). It provides end-to-end multi-model orchestration, self-hosted and sovereign backend integration, Cordis-powered extensible plugin pipelines, and JSON-RPC automation for modern LLM evaluation workflows.
 
-It uses an architecture where **everything is a plugin**, and is powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://github.com/cordiverse/paper).
+---
 
-## Developer preview
+## Fork Enhancements
 
-DeepSeek Harness is currently in _developer preview_ and is iterating rapidly. **THERE WILL BE COMPATIBILITY-BREAKING CHANGES.**
+- **Sovereign Backend**: Native integration with [EntheAI](https://github.com/8b-is) and self-hosted inference nodes with zero external data leakage.
+- **Evaluation Plugins**: Pluggable evaluation suites including `tool-eval`, `eval-entheai`, and custom benchmarking metrics.
+- **OpenCode Bridge & JSON-RPC SDK**: Drive evaluation runs and automated agent loops programmatically from OpenCode or custom orchestrators.
+- **Multi-Model Orchestration**: Unified provider interfaces for DeepSeek, Gemini, local models, and any OpenAI-compatible endpoint.
+- **Granular Sandboxing & Telemetry**: Native Landlock isolation, deterministic replay, and structured session persistence.
 
-## Run
+---
 
-### Run from `npm`
+## Architecture & Stack
 
-Install `Node.js`, then run:
+Everything in Deepsiper Enthea is a composable [Cordis](https://github.com/cordiverse/cordis) plugin.
 
-```sh
-npx @deepseek-ai/dsh web
+```
+                  ┌─────────────────────────────────────┐
+                  │    OpenCode / JSON-RPC / CLI / Web   │
+                  └──────────────────┬──────────────────┘
+                                     │
+                  ┌──────────────────▼──────────────────┐
+                  │      Cordis Kernel (Context & DI)   │
+                  └────┬──────────────┬───────────────┬─┘
+                       │              │               │
+        ┌──────────────▼─────┐ ┌──────▼──────┐ ┌──────▼──────────────┐
+        │  Sovereign Backends│ │ Eval Plugins│ │ Sandboxed Tool Seams│
+        │  (EntheAI / Local) │ │ (tool-eval) │ │ (Landlock / Bash)   │
+        └────────────────────┘ └─────────────┘ └─────────────────────┘
 ```
 
-The command starts the Web UI, served at `http://127.0.0.1:3080` by default. See [Web UI guide](docs/user/guide/index.md).
+- **Runtime & Language:** Node.js `>=22.19.0` or `>=24.0.0`, TypeScript 6 (Strict ESM)
+- **Bundler & Build:** `tsdown` / `rolldown` + `tsc` project references
+- **Testing & Quality:** Vitest 4, Oxlint, JSCPD clone detection
+- **Plugin Kernel:** Vendored Cordis framework with spatiotemporal composability
 
-### Run from source
+---
 
-To run from a repository checkout:
+## Quick Start
+
+### Prerequisites
+- Node.js `^22.19.0 || >=24.0.0`
+- `pnpm >= 11.0.0`
+
+### Installation & Build
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
+# Clone repository
+git clone https://github.com/8b-is/deepsiper-enthea.git
+cd deepsiper-enthea
+
+# Install dependencies and build harness
 pnpm install
-pnpm run build
+pnpm build
+```
+
+### Run Tasks
+
+```sh
+# Run a headless task using the sovereign profile
+pnpm dsh --profile headless "Analyze repository security posture and evaluate tool coverage"
+
+# Start the interactive Web UI and dashboard
 pnpm dsh web
 ```
 
-## Community and support
+---
 
-- Feel free to submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
-- Add the [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic to your plugin repository for discoverability.
-- Join <a href="https://discord.gg/Ycq5dCaS4">DeepSeek Harness Discord community</a>.
+## Documentation
 
-## Contributing
+- [Getting Started Guide](docs/getting-started.md)
+- [Architecture & Plugin Seams](docs/architecture.md)
+- [Writing Custom Plugins](docs/plugins/writing-plugins.md)
+- [JSON-RPC SDK](docs/sdk/json-rpc.md)
+- [Sovereign Backends (EntheAI)](docs/backends/entheai.md)
+- [Design System Spec](docs/design-system.md)
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+---
 
-## Development
+## Community & Ecosystem
 
-Start with the [development guide](docs/development.md) and [architecture documentation](docs/architecture.md).
+- **Fork Origin:** [8b-is/deepsiper-enthea](https://github.com/8b-is/deepsiper-enthea)
+- **Upstream:** [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
+- **Organization:** [8b-is](https://github.com/8b-is)
 
-For agents, follow [AGENTS.md](AGENTS.md).
+---
 
 ## License
 
-[MIT](LICENSE)
-
-Third-party dependencies and their licenses are disclosed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE) © 8b-is & DeepSeek AI contributors. Third-party dependency notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
