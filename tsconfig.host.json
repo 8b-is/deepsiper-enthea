@@ -202,6 +202,7 @@
     { "path": "./packages/code-runtime/code-runtime-worker-thread" },
     { "path": "./packages/llm/llm-deepseek" },
     { "path": "./packages/llm/llm-pi-ai" },
+    { "path": "./packages/llm/llm-osarous" },
     { "path": "./packages/llm/llm-memo" },
     { "path": "./packages/shell/bash-local" },
     { "path": "./packages/shell/shell-env" },
