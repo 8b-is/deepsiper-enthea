@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.tsbuildinfo"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../packages/core/tools" },
+    { "path": "../../../packages/skill/skill" },
+    { "path": "../../../packages/llm/llm" },
+    { "path": "../../../packages/runtime-diagnostics/invariants" }
+  ]
+}

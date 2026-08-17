@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { harmonics } from '../utils/AbyssalAudioHarmonics'
 
 interface HeaderProps {
   onLaunchConsole?: () => void
@@ -6,6 +7,13 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onLaunchConsole, onSonarPing }) => {
+  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false)
+
+  const toggleAudio = () => {
+    const active = harmonics.toggle()
+    setIsPlayingAudio(active)
+  }
+
   return (
     <header className="site-header">
       <div className="container header-inner">
@@ -25,14 +33,35 @@ export const Header: React.FC<HeaderProps> = ({ onLaunchConsole, onSonarPing }) 
         <nav className="nav-links">
           <a href="#features" className="nav-link">Capabilities</a>
           <a href="#architecture" className="nav-link">Depth Zones</a>
-          <a href="#evaluator" className="nav-link">Abyssal Arena</a>
+          <a href="#depth-explorer" className="nav-link">Trench Sim</a>
+          <a href="#benchmarks" className="nav-link">Benchmarks</a>
+          <a href="#seams" className="nav-link">Plugins</a>
           <a href="#quickstart" className="nav-link">Quickstart</a>
-          <a href="http://127.0.0.1:5173" target="_blank" rel="noreferrer" className="nav-link">Documentation</a>
         </nav>
 
         <div className="header-actions">
+          {/* Bob Marley / One Love Abyssal Harmonic Audio Synthesizer */}
+          <button
+            onClick={toggleAudio}
+            className={`btn-harmonic-toggle ${isPlayingAudio ? 'playing' : ''}`}
+            title={isPlayingAudio ? 'Mute Oceanic Resonance' : 'Play "One Love" Harmonic Resonance (Web Audio)'}
+          >
+            <div className="harmonic-bars">
+              <span className="h-bar h-bar-1"></span>
+              <span className="h-bar h-bar-2"></span>
+              <span className="h-bar h-bar-3"></span>
+            </div>
+            <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
+              {isPlayingAudio ? 'ONE LOVE ♪' : 'AUDIO ♪'}
+            </span>
+          </button>
+
           {onSonarPing && (
-            <button onClick={onSonarPing} className="btn btn-secondary btn-header-ping" title="Sonar Ping">
+            <button
+              onClick={onSonarPing}
+              className="btn btn-secondary btn-header-ping"
+              title="Sonar Ping"
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 7v5l3 3" />

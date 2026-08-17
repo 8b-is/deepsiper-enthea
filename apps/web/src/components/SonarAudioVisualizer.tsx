@@ -1,73 +1,70 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 
-interface SonarVisualizerProps {
+interface SonarAudioVisualizerProps {
   onPing?: () => void
 }
 
-export const SonarAudioVisualizer: React.FC<SonarVisualizerProps> = ({ onPing }) => {
+export const SonarAudioVisualizer: React.FC<SonarAudioVisualizerProps> = ({ onPing }) => {
+  const [frequencies, setFrequencies] = useState<number[]>([12, 28, 45, 62, 80, 55, 38, 20, 48, 70, 92, 60, 35, 18, 50, 75])
   const [isPinging, setIsPinging] = useState<boolean>(false)
-  const [bars, setBars] = useState<number[]>([25, 45, 70, 90, 60, 40, 80, 100, 75, 50, 30, 65, 85, 40, 20])
-  const [depth, setDepth] = useState<number>(3840) // meters deep in oceanic abyss
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setBars(prev => prev.map(() => Math.floor(Math.random() * 85) + 15))
-      setDepth(d => (d > 10900 ? 3840 : d + Math.floor(Math.random() * 12) + 2))
+      setFrequencies(prev =>
+        prev.map(() => Math.floor(Math.random() * 85) + 10),
+      )
     }, 120)
-    return () => clearInterval(interval)
+    return () => { clearInterval(interval) }
   }, [])
 
-  const triggerSonar = () => {
+  const handlePing = () => {
     setIsPinging(true)
-    if (onPing) onPing()
+    if (onPing) {
+      onPing()
+    }
+    // Surge frequencies to emulate active acoustic ping
+    setFrequencies([95, 100, 98, 90, 85, 92, 99, 94, 88, 96, 100, 93, 89, 95, 98, 90])
 
-    // Trigger visual pulse event
-    const event = new MouseEvent('click', {
-      clientX: window.innerWidth / 2,
-      clientY: window.innerHeight / 2,
-      bubbles: true,
-    })
-    window.dispatchEvent(event)
-
-    setTimeout(() => setIsPinging(false), 1200)
+    setTimeout(() => { setIsPinging(false) }, 1200)
   }
 
   return (
     <div className="sonar-bar-container">
       <div className="sonar-info">
-        <div className="sonar-status-dot"></div>
+        <div className="sonar-status-dot" />
         <div className="sonar-labels">
-          <span className="sonar-title">SONAR TELEMETRY MATRIX</span>
-          <span className="sonar-depth">DEPTH: -{depth}M (HUXLEY TRENCH)</span>
+          <span className="sonar-title">ABYSSAL HYDRO-ACOUSTIC TELEMETRY</span>
+          <span className="sonar-depth">DEPTH: -10,924m // CHANGER DEEP // ZERO DATA LEAKAGE</span>
         </div>
       </div>
 
       <div className="sonar-equalizer">
-        {bars.map((height, i) => (
-          <div
-            key={i}
-            className="sonar-eq-bar"
-            style={{
-              height: `${isPinging ? Math.min(100, height * 1.3) : height}%`,
-              background: isPinging
-                ? 'linear-gradient(to top, #06b6d4, #38bdf8, #ffffff)'
-                : 'linear-gradient(to top, #1e3a8a, #0284c7, #38bdf8)',
-            }}
-          />
-        ))}
+        {frequencies.map((freq, idx) => {
+          const heightPct = isPinging ? Math.min(100, freq * 1.2) : freq
+          const color = heightPct > 75 ? '#38bdf8' : heightPct > 45 ? '#06b6d4' : '#0284c7'
+          return (
+            <div
+              key={idx}
+              className="sonar-eq-bar"
+              style={{
+                height: `${heightPct}%`,
+                background: color,
+                boxShadow: isPinging ? `0 0 8px ${color}` : 'none',
+              }}
+            />
+          )
+        })}
       </div>
 
       <button
-        onClick={triggerSonar}
+        onClick={handlePing}
         className={`btn-sonar-ping ${isPinging ? 'pinging' : ''}`}
-        title="Emit an acoustic sonar ping across all connected agent seams"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M12 2a10 10 0 0 0-10 10c0 5.5 4.5 10 10 10s10-4.5 10-10" />
-          <path d="M12 6a6 6 0 0 0-6 6c0 3.3 2.7 6 6 6s6-2.7 6-6" />
-          <circle cx="12" cy="12" r="2" />
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 3" />
         </svg>
-        <span>{isPinging ? 'SONAR PINGING...' : 'EMIT ACOUSTIC PING'}</span>
+        <span>{isPinging ? 'EMITTING SONAR...' : 'EMIT ACOUSTIC PING'}</span>
       </button>
     </div>
   )

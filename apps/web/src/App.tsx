@@ -5,6 +5,9 @@ import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { FeatureGrid } from './components/FeatureGrid'
 import { ArchitectureDiagram } from './components/ArchitectureDiagram'
+import { TrenchDepthExplorer } from './components/TrenchDepthExplorer'
+import { BenchmarkRadar } from './components/BenchmarkRadar'
+import { SeamDirectory } from './components/SeamDirectory'
 import { InteractiveEvaluator } from './components/InteractiveEvaluator'
 import { QuickstartTerminal } from './components/QuickstartTerminal'
 import { Footer } from './components/Footer'
@@ -37,14 +40,14 @@ export const App: React.FC = () => {
 
       <div className="landing-content">
         <Header
-          onLaunchConsole={() => setShowConsoleModal(true)}
+          onLaunchConsole={() => { setShowConsoleModal(true) }}
           onSonarPing={triggerSonarPing}
         />
 
         <main>
           <Hero
-            onGetStarted={() => scrollToSection('quickstart')}
-            onLaunchConsole={() => setShowConsoleModal(true)}
+            onGetStarted={() => { scrollToSection('quickstart') }}
+            onLaunchConsole={() => { setShowConsoleModal(true) }}
             onSonarPing={triggerSonarPing}
           />
 
@@ -55,6 +58,9 @@ export const App: React.FC = () => {
 
           <FeatureGrid />
           <ArchitectureDiagram />
+          <TrenchDepthExplorer />
+          <BenchmarkRadar />
+          <SeamDirectory />
           <InteractiveEvaluator />
           <QuickstartTerminal />
         </main>
@@ -100,7 +106,7 @@ export const App: React.FC = () => {
                 </h3>
               </div>
               <button
-                onClick={() => setShowConsoleModal(false)}
+                onClick={() => { setShowConsoleModal(false) }}
                 className="btn btn-secondary"
                 style={{ padding: '4px 8px' }}
               >
@@ -125,7 +131,7 @@ export const App: React.FC = () => {
               pnpm dsh web
             </pre>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-              <button onClick={() => setShowConsoleModal(false)} className="btn btn-secondary">
+              <button onClick={() => { setShowConsoleModal(false) }} className="btn btn-secondary">
                 Close
               </button>
               <a href="http://127.0.0.1:3080" className="btn btn-primary" target="_blank" rel="noreferrer">

@@ -34,7 +34,6 @@ export const WhaleWaveCanvas: React.FC = () => {
     let height = (canvas.height = window.innerHeight)
 
     const handleResize = () => {
-      if (!canvas) return
       width = canvas.width = window.innerWidth
       height = canvas.height = window.innerHeight
     }

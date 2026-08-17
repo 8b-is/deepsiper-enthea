@@ -1,119 +1,118 @@
 import React, { useState } from 'react'
 
-interface OceanicZoneData {
+interface ArchZone {
   id: string
-  depth: string
   title: string
-  subtitle: string
-  description: string
-  spec: string
-  color: string
+  depth: string
+  desc: string
+  details: string
+  technologies: string[]
 }
 
+const ZONES: ArchZone[] = [
+  {
+    id: 'epipelagic',
+    title: 'Epipelagic Zone (Surface)',
+    depth: '0m - 200m',
+    desc: 'Public client interaction, browser console, and OpenCode protocol adapters.',
+    details: 'Duplex streaming over JSON-RPC 2.0 and WebSockets. Seamlessly bridges local IDE clients (Cursor, OpenCode, VS Code) to sovereign harness fibers.',
+    technologies: ['Vite 6', 'TypeScript 6', 'JSON-RPC 2.0', 'ACP Gateway'],
+  },
+  {
+    id: 'mesopelagic',
+    title: 'Mesopelagic Zone (Twilight)',
+    depth: '200m - 1,000m',
+    desc: 'Cordis reactive dependency engine, spatiotemporal fibers, and plugin registry.',
+    details: 'Everything is a Cordis plugin. Dynamic hot module replacement, lifecycle disposers, and topological execution graphs with zero side-effects.',
+    technologies: ['Vendored Cordis', 'Plugin Invariant Registry', 'Context Hierarchy'],
+  },
+  {
+    id: 'bathypelagic',
+    title: 'Bathypelagic Zone (Midnight)',
+    depth: '1,000m - 4,000m',
+    desc: 'Landlock sandboxing, local process isolation, and subsea bash execution.',
+    details: 'Enforces un-bypassable Linux Landlock ABI v3 containment. System binaries are locked to read-only; agent file mutations are confined strictly within workspace roots.',
+    technologies: ['Landlock ABI v3', 'POSIX Bash Runtime', 'Subprocess Tree Isolation'],
+  },
+  {
+    id: 'hadal',
+    title: 'Hadal Trench (Abyss)',
+    depth: '6,000m - 11,000m',
+    desc: 'Sovereign EntheAI reasoning pods, DeepSeek R1 core, and zero-telemetry SQLite logging.',
+    details: 'Air-gapped model inference enclaves. Complete operational silence: zero remote telemetry callbacks, schema-versioned durable session logs.',
+    technologies: ['DeepSeek R1 / V3', 'EntheAI Reasoning Pods', 'Monotonic SQLite Engine'],
+  },
+]
+
 export const ArchitectureDiagram: React.FC = () => {
-  const [selectedId, setSelectedId] = useState<string>('cordis')
-
-  const zones: OceanicZoneData[] = [
-    {
-      id: 'epipelagic',
-      depth: '0 - 200m',
-      title: '1. Epipelagic Surface',
-      subtitle: 'OpenCode / JSON-RPC / CLI / Web Ingress',
-      description: 'The sunlit surface gateway. Handles high-speed duplex WebSocket frames, telemetry streaming, and IDE orchestrators.',
-      spec: 'Transport: WebSocket 2.0 / StdIO / HTTP BFF\nSDK: @deepseek-ai/dsh-sdk\nProtocols: OpenCode Bridge, ACP Automation Server',
-      color: '#38bdf8',
-    },
-    {
-      id: 'cordis',
-      depth: '200 - 1,000m',
-      title: '2. Mesopelagic Twilight',
-      subtitle: 'Cordis Kernel & Spatiotemporal Fibers',
-      description: 'The core reactive engine. Dispatches lifecycle fibers, resolves dependency graph injection, and manages zero-coupling event streams.',
-      spec: 'Engine: Vendored Cordis Kernel\nPrimitives: Context, Service, Event, Effect\nLifecycle: Isolated Disposer Fibers',
-      color: '#6366f1',
-    },
-    {
-      id: 'bathypelagic',
-      depth: '1,000 - 4,000m',
-      title: '3. Bathypelagic Midnight',
-      subtitle: 'Landlock Pressure Sandboxes & Seams',
-      description: 'Granular capability seams isolating bash execution, subprocess process-trees, and filesystem policies beneath kernel-enforced hulls.',
-      spec: 'Isolation: Linux Landlock ABI v3 + macOS Sandbox\nSeams: dsh-shell, dsh-fs, dsh-lsp, dsh-web\nSecurity: Zero-Escapes Boundary',
-      color: '#06b6d4',
-    },
-    {
-      id: 'hadal',
-      depth: '4,000 - 11,000m',
-      title: '4. Hadal Trench Abyss',
-      subtitle: 'EntheAI Sovereign Inference & Eval',
-      description: 'The sovereign deep. Air-gapped self-hosted model weights, deterministic trajectory scoring, and rubric verification with total data sovereignty.',
-      spec: 'Sovereignty: EntheAI Sovereign Inference Nodes\nEval Plugins: tool-eval, eval-entheai\nTelemetry: SQLite Monotonic Schema Logs',
-      color: '#10b981',
-    },
-  ]
-
-  const defaultZone: OceanicZoneData = zones[1] as OceanicZoneData
-  const activeZone: OceanicZoneData = zones.find(z => z.id === selectedId) ?? defaultZone
+  const [selectedId, setSelectedId] = useState<string>('hadal')
+  const fallbackZone: ArchZone = ZONES[3] ?? {
+    id: 'hadal',
+    title: 'Hadal Trench',
+    depth: '6000m',
+    desc: 'Deep',
+    details: 'Sovereign',
+    technologies: ['DeepSeek R1'],
+  }
+  const activeZone: ArchZone = ZONES.find(z => z.id === selectedId) ?? fallbackZone
 
   return (
     <section id="architecture" className="arch-section">
       <div className="container">
         <div className="section-header">
-          <div className="section-tag">Oceanic Depth Topology</div>
-          <h2 className="section-title">Deep Subsea Architecture Layers</h2>
+          <div className="section-tag">Spatiotemporal Ocean Architecture</div>
+          <h2 className="section-title">Deep Subsea Containment Tiers</h2>
         </div>
 
         <div className="arch-container">
           <div className="arch-flow">
-            {zones.map(zone => (
+            {ZONES.map(zone => (
               <div
                 key={zone.id}
                 className={`arch-node ${zone.id === selectedId ? 'active' : ''}`}
-                onClick={() => setSelectedId(zone.id)}
+                onClick={() => { setSelectedId(zone.id) }}
                 style={{
-                  borderLeft: `4px solid ${zone.color}`,
+                  borderColor: zone.id === selectedId ? '#38bdf8' : 'var(--border-base)',
                 }}
               >
-                <div style={{ fontSize: '0.6875rem', color: zone.color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                  DEPTH: {zone.depth}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="arch-node-meta">{zone.depth}</span>
+                  {zone.id === selectedId && <span className="pulse-dot" />}
                 </div>
                 <div className="arch-node-title">{zone.title}</div>
-                <div className="arch-node-meta">{zone.subtitle}</div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  {zone.desc}
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="arch-detail-view" style={{ borderColor: activeZone.color }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '1rem' }}>
-                {activeZone.title} — {activeZone.subtitle}
+          <div className="arch-detail-view">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ color: '#38bdf8', fontWeight: 700, fontSize: '1rem' }}>
+                {activeZone.title} &mdash; <span style={{ color: 'var(--text-muted)' }}>{activeZone.depth}</span>
               </div>
-              <span style={{
-                background: 'rgba(255,255,255,0.06)',
-                color: activeZone.color,
-                padding: '3px 8px',
-                borderRadius: '4px',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.75rem',
-              }}>
-                ZONE DEPTH: {activeZone.depth}
-              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {activeZone.technologies.map(t => (
+                  <span
+                    key={t}
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.1)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontSize: '0.75rem',
+                      color: '#38bdf8',
+                    }}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
             </div>
-
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-              {activeZone.description}
+            <p style={{ lineHeight: 1.7, color: 'var(--text-secondary)' }}>
+              {activeZone.details}
             </p>
-
-            <pre style={{
-              color: activeZone.color,
-              background: '#040914',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              padding: '14px 18px',
-              borderRadius: 8,
-              overflowX: 'auto',
-            }}>
-              {activeZone.spec}
-            </pre>
           </div>
         </div>
       </div>
