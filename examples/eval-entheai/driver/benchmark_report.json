@@ -1,0 +1,42 @@
+[
+  {
+    "id": "fizzbuzz",
+    "name": "FizzBuzz Logic & 18 Edge Cases",
+    "trials": 2,
+    "passed": 2,
+    "pass_rate": 100.0,
+    "avg_latency_ms": 9430.676187505014
+  },
+  {
+    "id": "fibonacci_matrix",
+    "name": "O(log N) Matrix Power Fibonacci",
+    "trials": 2,
+    "passed": 2,
+    "pass_rate": 100.0,
+    "avg_latency_ms": 14784.126771002775
+  },
+  {
+    "id": "kademlia_xor",
+    "name": "Kademlia 256-bit XOR Metric Distance",
+    "trials": 2,
+    "passed": 2,
+    "pass_rate": 100.0,
+    "avg_latency_ms": 10552.771895992919
+  },
+  {
+    "id": "bitlinear_ternary",
+    "name": "BitLinear {-1, 0, +1} Symmetric Quantizer",
+    "trials": 2,
+    "passed": 2,
+    "pass_rate": 100.0,
+    "avg_latency_ms": 10963.88493750419
+  },
+  {
+    "id": "ast_invariant",
+    "name": "AST Syntax & Pure Function Validator",
+    "trials": 2,
+    "passed": 2,
+    "pass_rate": 100.0,
+    "avg_latency_ms": 9534.722229000181
+  }
+]
