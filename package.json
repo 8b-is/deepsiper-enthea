@@ -13,6 +13,7 @@
     "packages/*/*",
     "native/landlock-run",
     "native/landlock-run/packages/*",
+    "native/hardware-info",
     "apps/*",
     "website"
   ],

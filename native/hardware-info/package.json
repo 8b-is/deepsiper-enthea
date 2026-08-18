@@ -1,0 +1,26 @@
+{
+  "name": "@deepseek-ai/node-addon-hardware-info",
+  "version": "0.1.0",
+  "description": "Neon addon exposing sysinfo hardware introspection (CPU, memory, system identity) to Node.js, gated to apple-silicon and linux hosts",
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@11.7.0",
+  "main": "index.mjs",
+  "files": [
+    "index.mjs",
+    "lib/index.node",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "cargo-cp-artifact -nc lib/index.node -- cargo build --message-format=json-render-diagnostics",
+    "build:release": "cargo-cp-artifact -nc lib/index.node -- cargo build --release --message-format=json-render-diagnostics",
+    "test": "node ./test/hardware-info.test.js"
+  },
+  "devDependencies": {
+    "cargo-cp-artifact": "^0.1.9"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -5,6 +5,8 @@ packages:
   # its native build and publication scripts under native/landlock-run.
   - native/landlock-run
   - native/landlock-run/packages/*
+  # Neon hardware introspection addon (sysinfo behind a Neon boundary).
+  - native/hardware-info
   # Product assemblies over the package tier; apps/cli owns the `dsh` bin.
   - apps/*
   - website

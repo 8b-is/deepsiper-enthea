@@ -1,0 +1,13 @@
+[package]
+name = "node-addon-hardware-info"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Neon addon exposing sysinfo hardware introspection to Node.js"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+neon = "1"
+sysinfo = "0.39"
