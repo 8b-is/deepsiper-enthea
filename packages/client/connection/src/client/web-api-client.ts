@@ -66,6 +66,11 @@ export class WebApiClient extends AbstractApiClient {
     const handleAbort = (): void => {
       if (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN) socket.close()
     }
+    // Remove any stale listeners from a previous connection before adding new ones
+    socket.removeEventListener('open', handleOpen)
+    socket.removeEventListener('message', handleMessage)
+    socket.removeEventListener('close', handleClose)
+    signal.removeEventListener('abort', handleAbort)
     socket.addEventListener('open', handleOpen)
     socket.addEventListener('message', handleMessage)
     socket.addEventListener('close', handleClose, { once: true })
@@ -81,10 +86,10 @@ export class WebApiClient extends AbstractApiClient {
         await new Promise<void>((resolve) => { wake = resolve })
       }
     } finally {
-      signal.removeEventListener('abort', handleAbort)
       socket.removeEventListener('open', handleOpen)
       socket.removeEventListener('message', handleMessage)
       socket.removeEventListener('close', handleClose)
+      signal.removeEventListener('abort', handleAbort)
       handleAbort()
     }
   }

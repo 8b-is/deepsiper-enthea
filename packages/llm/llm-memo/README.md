@@ -20,18 +20,6 @@ the first one. Only the adapter dispatch is skipped.
     maxBytes: 4194304    # total estimated bytes (default 4 MiB)
 ```
 
-## Model experience
-
-- **Model request effects:** none. A cache hit replays the exact chunks a
-  prior identical request produced, so the model sees no difference from a
-  fresh response; a miss forwards the request unchanged.
-- **Token effects:** a hit performs no inference, so no provider tokens are
-  billed and no usage chunk is fabricated — the original usage chunk is
-  replayed verbatim.
-- **KV-cache effects:** the memo cache is process-local and in-memory only; it
-  is unrelated to provider-side prompt/prefix caching (`cacheReadTokens` /
-  `cacheWriteTokens`), which pass through untouched on misses.
-
 ## Semantics
 
 - **Key** = provider, model, reasoning effort, system prompt, temperature,
@@ -44,6 +32,22 @@ the first one. Only the adapter dispatch is skipped.
   text key.
 - **Eviction** is least-recently-used, bounded by both entry count and total
   estimated bytes.
+
+## Model Experience
+
+### Memo cache hit and miss
+
+#### What the model sees
+
+A cache hit replays the exact chunks a prior identical request produced, so the model sees no difference from a fresh response; a miss forwards the request unchanged.
+
+#### Token effect
+
+A hit performs no inference, so no provider `tokens` are billed and no usage chunk is fabricated — the original usage chunk is replayed verbatim.
+
+#### KV Cache effect
+
+The memo cache is process-local and in-memory only; it is unrelated to provider-side prompt/prefix caching (`cacheReadTokens` / `cacheWriteTokens`), which pass through untouched on misses.
 
 ## Known Limitations and Deferred Work
 
