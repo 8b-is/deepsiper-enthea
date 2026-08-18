@@ -3,22 +3,36 @@
   "version": "0.1.0",
   "description": "Neon addon exposing sysinfo hardware introspection (CPU, memory, system identity) to Node.js, gated to apple-silicon and linux hosts",
   "type": "module",
+  "private": true,
   "license": "MIT",
   "packageManager": "pnpm@11.7.0",
-  "main": "index.mjs",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
-    "index.mjs",
+    "lib/index.js",
+    "lib/index.d.ts",
     "lib/index.node",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "cargo-cp-artifact -nc lib/index.node -- cargo build --message-format=json-render-diagnostics",
-    "build:release": "cargo-cp-artifact -nc lib/index.node -- cargo build --release --message-format=json-render-diagnostics",
+    "build": "tsc -b && cargo-cp-artifact -nc lib/index.node -- cargo build --message-format=json-render-diagnostics",
+    "build:release": "tsc -b && cargo-cp-artifact -nc lib/index.node -- cargo build --release --message-format=json-render-diagnostics",
+    "build:js": "tsc -b",
+    "typecheck": "tsc --noEmit && tsc -b --dry",
     "test": "node ./test/hardware-info.test.js"
   },
   "devDependencies": {
-    "cargo-cp-artifact": "^0.1.9"
+    "@types/node": "^26.0.1",
+    "cargo-cp-artifact": "^0.1.9",
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=22"

@@ -1,0 +1,26 @@
+# Test-only composition: exercise the host-info context through the real Loader/app path.
+- id: host-info-mock-llm
+  name: './host-info-mock-llm.ts'
+
+- id: host-info
+  name: '@deepseek-ai/dsh-host-info'
+
+- id: agent-spine
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    agents:
+      - id: main
+        provider: host-info-mock
+        model: host-info-mock
+        cwd: !!js process.cwd()
+    persona: 'Test the host-info context.'
+    workspaceContext: false
+
+- id: persistence
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: './.sessions'
+    compression: 'none'
+
+- id: checkpoint-policy
+  name: '@deepseek-ai/dsh-session-checkpoint-policy'

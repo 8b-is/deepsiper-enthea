@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { hardwareInfo, probe } from '../index.mjs'
+import { hardwareInfo, probe } from '../lib/index.js'
 
 const SUPPORTED = (process.platform === 'darwin' && process.arch === 'arm64')
   || process.platform === 'linux'

@@ -42,6 +42,8 @@
         "headless-agent/tests/fixtures/subagent-settlement-fence.ts",
         "headless-agent/tests/fixtures/workspace-context-resume-agent.ts",
         "headless-agent/tests/fixtures/goal-domain/seed-goal.ts",
+        "headless-agent/tests/fixtures/host-info-driver.ts",
+        "headless-agent/tests/fixtures/host-info-mock-llm.ts",
         "headless-agent/tests/fixtures/time-context-driver.ts",
         "headless-agent/tests/fixtures/time-context-mock-llm.ts",
         "headless-agent/tests/fixtures/session-telemetry-otel-driver.ts",
@@ -303,6 +305,16 @@
       ]
     },
     "packages/context/time-context": {
+      "entry": [
+        "tests/**/*.spec.ts",
+        "tests/**/*.e2e.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "tests/**/*.ts"
+      ]
+    },
+    "packages/context/host-info": {
       "entry": [
         "tests/**/*.spec.ts",
         "tests/**/*.e2e.ts"

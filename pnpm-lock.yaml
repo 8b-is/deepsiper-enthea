@@ -509,6 +509,9 @@ importers:
       '@deepseek-ai/dsh-hooks-codex':
         specifier: workspace:*
         version: link:../packages/hooks/hooks-codex
+      '@deepseek-ai/dsh-host-info':
+        specifier: workspace:*
+        version: link:../packages/context/host-info
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:*
         version: link:../packages/runtime-diagnostics/invariants
@@ -743,9 +746,15 @@ importers:
 
   native/hardware-info:
     devDependencies:
+      '@types/node':
+        specifier: ^26.0.1
+        version: 26.1.2
       cargo-cp-artifact:
         specifier: ^0.1.9
         version: 0.1.9
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
   native/landlock-run:
     devDependencies:
@@ -3359,6 +3368,31 @@ importers:
       '@deepseek-ai/dsh-tools':
         specifier: workspace:^
         version: link:../../core/tools
+
+  packages/context/host-info:
+    dependencies:
+      '@deepseek-ai/node-addon-hardware-info':
+        specifier: workspace:^
+        version: link:../../../native/hardware-info
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-loader-smoke':
+        specifier: workspace:^
+        version: link:../../test-support/loader-smoke
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
 
   packages/context/session-reference:
     dependencies:
