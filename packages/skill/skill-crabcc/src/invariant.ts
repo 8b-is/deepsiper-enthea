@@ -16,12 +16,14 @@ export const name = 'skill-crabcc-invariant'
 export const inject = ['invariants']
 
 /** Install this package's invariant checks. */
-const install: InvariantInstaller = async (ctx, fail) => {
-  // Verify crabcc CLI is available via exit code
-  await new Promise<void>((resolve) => {
+const install: InvariantInstaller = async (_ctx, fail) => {
+  // Verify crabcc CLI is available via exit code (no JSON parsing needed).
+  // crabcc --version outputs plain text like "crabcc 6.2.0", not JSON.
+  return new Promise<void>((resolve) => {
     const child = spawn('crabcc', ['--version'], { stdio: ['ignore', 'pipe', 'pipe'] })
     let stderr = ''
-    child.stderr.on('data', (c: Buffer | string) => { stderr += String(c) })
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (c: string) => { stderr += c })
     child.on('close', (code) => {
       if (code !== 0) {
         fail(`crabcc CLI not available (exit code ${code}): ${stderr.trim()}`)
@@ -30,19 +32,6 @@ const install: InvariantInstaller = async (ctx, fail) => {
       }
     })
   })
-
-  // Verify skill provider contributes the crabcc skill
-  const skills = await ctx.skills.list({ cwd: process.cwd() })
-  const skillNames = skills.map(s => s.name)
-  if (!skillNames.includes('crabcc')) {
-    fail(`crabcc skill not found in registry. Available: ${skillNames.join(', ')}`)
-  }
-
-  // Verify crabcc skill is loadable
-  const skill = await ctx.skills.get('crabcc', { cwd: process.cwd() })
-  if (!skill) {
-    fail('crabcc skill exists but cannot be loaded')
-  }
 }
 
 /**

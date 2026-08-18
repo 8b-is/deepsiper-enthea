@@ -2,12 +2,17 @@
  * crabcc symbol index tools and skill provider.
  *
  * Wraps the crabcc CLI (https://github.com/8b-is/crabcc) as agent tools:
- * - code_search: find symbols by name with optional reference expansion
+ * - code_search: fuzzy symbol lookup with optional reference expansion
  * - goto_definition: locate a symbol's definition
  * - find_references: find all references to a symbol
  *
  * Also registers a skill provider that contributes a "crabcc" skill
  * describing how to use these tools effectively.
+ *
+ * The CLI surface targeted here is crabcc 6.x: `lookup fuzzy`, `lookup sym`,
+ * and `lookup refs` emit JSON on stdout by default and accept `--limit`
+ * (fuzzy, refs) and `--root` (all lookup subcommands). `--version` prints
+ * plain text and is used only for the availability probe.
  *
  * @module @deepseek-ai/dsh-skill-crabcc
  */
@@ -25,7 +30,7 @@ import type {
 } from '@deepseek-ai/dsh-skill'
 
 export const name = 'skill-crabcc'
-export const inject = ['tools', 'skills']
+export const inject = ['skills']
 
 /** crabcc tool configuration. */
 export interface Config {
@@ -33,10 +38,6 @@ export interface Config {
   crabccBin?: string
   /** Default repository root for queries. Defaults to process.cwd(). */
   defaultRoot?: string
-  /** Whether to run crabcc as MCP server for skill discovery. */
-  useMcp?: boolean
-  /** MCP server address when useMcp is true. */
-  mcpAddr?: string
   /** Skill provider name. */
   providerName?: string
 }
@@ -44,8 +45,6 @@ export interface Config {
 export const Config: Schema<Config> = z.object({
   crabccBin: z.string().default('crabcc'),
   defaultRoot: z.string().default(process.cwd()),
-  useMcp: z.boolean().default(false),
-  mcpAddr: z.string().default('127.0.0.1:8091'),
   providerName: z.string().min(1).default('crabcc'),
 })
 
@@ -53,8 +52,6 @@ export const Config: Schema<Config> = z.object({
 const DEFAULT_CONFIG: Config = {
   crabccBin: 'crabcc',
   defaultRoot: process.cwd(),
-  useMcp: false,
-  mcpAddr: '127.0.0.1:8091',
   providerName: 'crabcc',
 }
 
@@ -71,33 +68,51 @@ function setConfig(config: Config): void {
   currentConfig = config
 }
 
-interface CrabccSymbolResult {
+/** `crabcc lookup sym` hit (crabcc 6.x wire format). */
+interface CrabccSymbol {
+  name: string
+  kind: string
+  signature?: string
+  parent?: string | null
+  file: string
+  line_start: number
+  line_end: number
+  visibility?: string | null
+}
+
+/** `crabcc lookup refs` hit (crabcc 6.x wire format). */
+interface CrabccRef {
+  file: string
+  line: number
+  col: number
+  snippet?: string
+}
+
+/** `crabcc lookup fuzzy` hit (crabcc 6.x wire format). */
+interface CrabccFuzzyHit {
   name: string
   kind: string
   file: string
   line: number
-  column: number
-  signature?: string
-  doc?: string
+  parent?: string | null
+  score: number
 }
 
-interface CrabccRefsResult {
-  symbol: string
-  refs: Array<{
-    file: string
-    line: number
-    column: number
-    kind: 'read' | 'write' | 'call' | 'import'
-  }>
+/** Options for {@link runCrabcc}. */
+interface RunOptions {
+  root?: string
+  signal?: AbortSignal
+  /** Parse stdout as text instead of JSON (for `--version`-style probes). */
+  text?: boolean
 }
 
-/** Execute crabcc command and return parsed JSON output. */
+/** Execute crabcc and return its stdout. */
 export async function runCrabcc(
   bin: string,
   args: string[],
-  options: { root?: string; signal?: AbortSignal | undefined } = {},
+  options: RunOptions = {},
 ): Promise<unknown> {
-  const { root = process.cwd(), signal } = options
+  const { root = process.cwd(), signal, text = false } = options
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, {
       cwd: root,
@@ -114,9 +129,12 @@ export async function runCrabcc(
         reject(new Error(`crabcc ${args.join(' ')} failed (exit ${code}): ${stderr.trim()}`))
         return
       }
+      if (text) {
+        resolve(stdout)
+        return
+      }
       try {
-        const parsed: unknown = JSON.parse(stdout.trim())
-        resolve(parsed)
+        resolve(JSON.parse(stdout.trim()))
       } catch (err) {
         reject(new Error(`Failed to parse crabcc output: ${err instanceof Error ? err.message : String(err)}\nOutput: ${stdout}`))
       }
@@ -124,13 +142,23 @@ export async function runCrabcc(
   })
 }
 
-/** `code_search` tool: query symbols with optional reference count. */
+/** Whether the crabcc binary answers `--version` with exit 0. */
+export async function isCrabccAvailable(bin: string, root: string): Promise<boolean> {
+  try {
+    await runCrabcc(bin, ['--version'], { root, text: true })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** `code_search` tool: fuzzy symbol lookup with optional reference counts. */
 const codeSearchTool = defineTool({
   name: 'code_search',
   description:
-    'Search for code symbols (functions, types, classes, methods) in the repository using the crabcc symbol index. Fast, fuzzy name matching with optional reference counts. Use this instead of grep when looking for definitions.',
+    'Search for code symbols (functions, types, classes, methods) in the repository using the crabcc symbol index. Fuzzy name matching with optional reference counts. Use this instead of grep when looking for definitions.',
   parameters: {
-    query: { type: 'string', required: true, description: 'Symbol name or search pattern' },
+    query: { type: 'string', required: true, description: 'Symbol name or fuzzy search pattern' },
     limit: { type: 'integer', description: 'Maximum number of results to return (default: 20)' },
     includeRefs: { type: 'boolean', description: 'Include reference counts for each symbol (slower)' },
     root: { type: 'string', description: 'Repository root path (defaults to workspace root)' },
@@ -150,7 +178,6 @@ const codeSearchTool = defineTool({
               kind: { type: 'string', required: true },
               file: { type: 'string', required: true },
               line: { type: 'integer', required: true },
-              column: { type: 'integer', required: true },
               signature: { type: 'string' },
               doc: { type: 'string' },
               refCount: { type: 'integer' },
@@ -170,27 +197,32 @@ const codeSearchTool = defineTool({
     const limit = args.limit ?? 20
     const includeRefs = args.includeRefs ?? false
 
-    const raw = await runCrabcc(crabccBin, ['lookup', 'sym', query, '--json', '--limit', String(limit)], {
+    const raw = await runCrabcc(crabccBin, ['lookup', 'fuzzy', query, '--limit', String(limit)], {
       root,
       signal: exec.signal,
     })
 
-    if (!raw || !Array.isArray(raw)) {
+    if (!Array.isArray(raw)) {
       return { results: [], query, total: 0 }
     }
 
-    const results = raw as CrabccSymbolResult[]
-    let enriched = results.slice(0, limit)
+    const hits = raw as CrabccFuzzyHit[]
+    let enriched = hits.slice(0, limit).map(hit => ({
+      name: hit.name,
+      kind: hit.kind,
+      file: hit.file,
+      line: hit.line,
+    }))
     if (includeRefs) {
       enriched = await Promise.all(
         enriched.map(async (sym) => {
           try {
             const refs = await runCrabcc(
               crabccBin,
-              ['lookup', 'refs', sym.name, '--json'],
+              ['lookup', 'refs', sym.name, '--limit', '0'],
               { root, signal: exec.signal },
-            ) as CrabccRefsResult
-            return { ...sym, refCount: refs.refs.length }
+            ) as CrabccRef[]
+            return { ...sym, refCount: Array.isArray(refs) ? refs.length : 0 }
           } catch {
             return { ...sym, refCount: 0 }
           }
@@ -198,7 +230,7 @@ const codeSearchTool = defineTool({
       )
     }
 
-    return { results: enriched, query, total: results.length }
+    return { results: enriched, query, total: enriched.length }
   },
   presentCall(args) {
     return {
@@ -238,9 +270,7 @@ const gotoDefinitionTool = defineTool({
         kind: { type: 'string' },
         file: { type: 'string' },
         line: { type: 'integer' },
-        column: { type: 'integer' },
         signature: { type: 'string' },
-        doc: { type: 'string' },
       },
     },
     render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
@@ -250,17 +280,16 @@ const gotoDefinitionTool = defineTool({
     const root = args.root ?? defaultRoot
     const symbol = args.symbol
 
-    const raw = await runCrabcc(crabccBin, ['lookup', 'sym', symbol, '--json', '--limit', '1'], {
+    const raw = await runCrabcc(crabccBin, ['lookup', 'sym', symbol], {
       root,
       signal: exec.signal,
     })
 
-    if (!raw || !Array.isArray(raw) || raw.length === 0) {
+    if (!Array.isArray(raw) || raw.length === 0) {
       return { found: false, symbol }
     }
 
-    const results = raw as CrabccSymbolResult[]
-    const sym = results[0]
+    const sym = (raw as CrabccSymbol[])[0]
     if (!sym) {
       return { found: false, symbol }
     }
@@ -270,10 +299,8 @@ const gotoDefinitionTool = defineTool({
       symbol: sym.name,
       kind: sym.kind,
       file: sym.file,
-      line: sym.line,
-      column: sym.column,
+      line: sym.line_start,
       signature: sym.signature ?? '',
-      doc: sym.doc ?? '',
     }
   },
   presentCall(args) {
@@ -299,7 +326,7 @@ const gotoDefinitionTool = defineTool({
 const findReferencesTool = defineTool({
   name: 'find_references',
   description:
-    'Find all references/usages of a symbol across the entire repository. Returns each reference location (file, line, column) and kind (read, write, call, import).',
+    'Find all references/usages of a symbol across the entire repository. Returns each reference location (file, line, column) and the surrounding snippet.',
   parameters: {
     symbol: { type: 'string', required: true, description: 'Symbol name to find references for' },
     limit: { type: 'integer', description: 'Maximum number of references to return (default: 50)' },
@@ -319,8 +346,8 @@ const findReferencesTool = defineTool({
             properties: {
               file: { type: 'string', required: true },
               line: { type: 'integer', required: true },
-              column: { type: 'integer', required: true },
-              kind: { type: 'string', required: true, enum: ['read', 'write', 'call', 'import'] },
+              column: { type: 'integer' },
+              snippet: { type: 'string' },
             },
           },
         },
@@ -335,20 +362,25 @@ const findReferencesTool = defineTool({
     const symbol = args.symbol
     const limit = args.limit ?? 50
 
-    const raw = await runCrabcc(crabccBin, ['lookup', 'refs', symbol, '--json'], {
+    const raw = await runCrabcc(crabccBin, ['lookup', 'refs', symbol, '--limit', String(limit)], {
       root,
       signal: exec.signal,
     })
 
-    if (!raw || typeof raw !== 'object' || !('refs' in raw)) {
+    if (!Array.isArray(raw)) {
       return { symbol, references: [], total: 0 }
     }
 
-    const result = raw as CrabccRefsResult
+    const refs = raw as CrabccRef[]
     return {
-      symbol: result.symbol,
-      references: result.refs.slice(0, limit),
-      total: result.refs.length,
+      symbol,
+      references: refs.slice(0, limit).map(ref => ({
+        file: ref.file,
+        line: ref.line,
+        column: ref.col,
+        ...(ref.snippet === undefined ? {} : { snippet: ref.snippet }),
+      })),
+      total: refs.length,
     }
   },
   presentCall(args) {
@@ -377,7 +409,7 @@ This skill provides access to the **crabcc** symbol index (https://github.com/8b
 ## Available Tools
 
 ### \`code_search\`
-Search for symbols by name pattern. Returns definitions with file locations and optional reference counts.
+Search for symbols by fuzzy name pattern. Returns definitions with file locations and optional reference counts.
 
 \`\`\`json
 {
@@ -390,7 +422,7 @@ Search for symbols by name pattern. Returns definitions with file locations and 
 Use when: exploring a codebase, finding relevant functions/types, discovering APIs.
 
 ### \`goto_definition\`
-Jump to the exact definition of a symbol. Returns file, line, column, signature, and doc comment.
+Jump to the exact definition of a symbol. Returns file, line, and signature.
 
 \`\`\`json
 {
@@ -401,7 +433,7 @@ Jump to the exact definition of a symbol. Returns file, line, column, signature,
 Use when: you need to read the implementation of a specific symbol.
 
 ### \`find_references\`
-Find all usages of a symbol across the codebase. Returns each reference with location and kind (read/write/call/import).
+Find all usages of a symbol across the codebase. Returns each reference location and the surrounding snippet.
 
 \`\`\`json
 {
@@ -439,13 +471,8 @@ class CrabccSkillProvider implements SkillProvider {
   }
 
   async list(options: SkillLookupOptions): Promise<SkillCandidate[]> {
-    // Only offer the skill if crabcc is available
-    try {
-      await runCrabcc(this.config.crabccBin ?? 'crabcc', ['--version'], {
-        root: options.cwd ?? this.config.defaultRoot ?? process.cwd(),
-        signal: options.signal,
-      })
-    } catch {
+    const root = options.cwd ?? this.config.defaultRoot ?? process.cwd()
+    if (!(await isCrabccAvailable(this.config.crabccBin ?? 'crabcc', root))) {
       return []
     }
 
@@ -467,11 +494,8 @@ class CrabccSkillProvider implements SkillProvider {
 
   async get(candidate: SkillCandidate, _options: SkillLookupOptions): Promise<SkillDefinition | undefined> {
     if (candidate.name !== 'crabcc') return undefined
-
-    // Verify crabcc is available
-    try {
-      await runCrabcc(this.config.crabccBin ?? 'crabcc', ['--version'], { root: this.config.defaultRoot ?? process.cwd() })
-    } catch {
+    const root = this.config.defaultRoot ?? process.cwd()
+    if (!(await isCrabccAvailable(this.config.crabccBin ?? 'crabcc', root))) {
       return undefined
     }
 
@@ -494,12 +518,15 @@ export function apply(ctx: Context, config: Config = {}): void {
   const resolvedConfig: Config = Object.assign({}, DEFAULT_CONFIG, config)
   setConfig(resolvedConfig)
 
-  // Register tools
-  ctx.tools.register(codeSearchTool)
-  ctx.tools.register(gotoDefinitionTool)
-  ctx.tools.register(findReferencesTool)
+  // Tools are optional: the skill registry works without a tool runtime, and
+  // mounting one later must not require this plugin to restart.
+  const tools = ctx.get('tools')
+  if (tools !== undefined) {
+    tools.register(codeSearchTool)
+    tools.register(gotoDefinitionTool)
+    tools.register(findReferencesTool)
+  }
 
-  // Register skill provider
   const provider = new CrabccSkillProvider(resolvedConfig)
   ctx.skills.registerProvider(() => provider)
 }
