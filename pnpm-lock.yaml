@@ -6906,6 +6906,31 @@ importers:
         specifier: workspace:^
         version: link:../../interaction/user-approval
 
+  packages/skill/crabcc-cache-postgres:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-skill-crabcc':
+        specifier: workspace:^
+        version: link:../skill-crabcc
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      pg-mem:
+        specifier: ^3.0.14
+        version: 3.0.14
+
   packages/skill/skill:
     dependencies:
       '@deepseek-ai/schemastery':

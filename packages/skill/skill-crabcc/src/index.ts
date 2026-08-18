@@ -22,6 +22,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import type { ToolExecution } from '@deepseek-ai/dsh-tools'
 import type {
   SkillCandidate,
   SkillDefinition,
@@ -31,6 +32,81 @@ import type {
 
 export const name = 'skill-crabcc'
 export const inject = ['skills']
+
+/**
+ * One cache lookup key: the exact query inputs a tool maps to a crabcc
+ * invocation. All fields are non-null so the durable cache can key on them.
+ */
+export interface CrabccCacheKey {
+  /** Repository root the lookup ran against. */
+  root: string
+  /** The crabcc lookup family. */
+  kind: 'fuzzy' | 'sym' | 'refs'
+  /** Fuzzy pattern or exact symbol name. */
+  query: string
+  /** Result cap; `0` when the caller did not set one. */
+  limit: number
+  /** `code_search` reference expansion flag. */
+  includeRefs: boolean
+}
+
+/**
+ * Durable result cache for crabcc lookups. A provider mounts an
+ * implementation (e.g. the Postgres sidecar cache); when none is mounted the
+ * tools run crabcc directly and cache misses cost nothing extra.
+ */
+export interface CrabccCache {
+  /** Return the cached tool result for a key, or `undefined` on miss. */
+  get(key: CrabccCacheKey): Promise<unknown>
+  /** Store a tool result under a key. */
+  set(key: CrabccCacheKey, result: unknown): Promise<void>
+  /** Drop cached entries, optionally scoped to one root. */
+  invalidate(root?: string): Promise<void>
+}
+
+/**
+ * Resolve the optional durable cache for one tool execution. Cache failures
+ * degrade to a direct crabcc run: the cache is an optimization, never a
+ * correctness dependency.
+ * @param exec - the executing tool call.
+ * @returns the cache, or `undefined` when none is mounted.
+ */
+function cacheFor(exec: ToolExecution): CrabccCache | undefined {
+  return exec.agent?.ctx.get('crabccCache') as CrabccCache | undefined
+}
+
+/**
+ * Run a tool body through the optional durable cache: hit → return cached;
+ * miss → compute, store (best-effort), return.
+ * @param exec - the executing tool call.
+ * @param key - the deterministic cache key.
+ * @param compute - the direct crabcc execution.
+ * @returns the tool result, from cache or fresh.
+ */
+async function throughCache<T>(
+  exec: ToolExecution,
+  key: CrabccCacheKey,
+  compute: () => Promise<T>,
+): Promise<T> {
+  const cache = cacheFor(exec)
+  if (cache !== undefined) {
+    try {
+      const hit = await cache.get(key)
+      if (hit !== undefined) return hit as T
+    } catch {
+      // A cache read failure degrades to a direct crabcc run.
+    }
+  }
+  const result = await compute()
+  if (cache !== undefined) {
+    try {
+      await cache.set(key, result)
+    } catch {
+      // A cache write failure must not fail a successful lookup.
+    }
+  }
+  return result
+}
 
 /** crabcc tool configuration. */
 export interface Config {
@@ -153,6 +229,7 @@ export async function isCrabccAvailable(bin: string, root: string): Promise<bool
 }
 
 /** `code_search` tool: fuzzy symbol lookup with optional reference counts. */
+/* jscpd:ignore-start -- the three tools share the cache-through-run wrapper */
 const codeSearchTool = defineTool({
   name: 'code_search',
   description:
@@ -197,40 +274,42 @@ const codeSearchTool = defineTool({
     const limit = args.limit ?? 20
     const includeRefs = args.includeRefs ?? false
 
-    const raw = await runCrabcc(crabccBin, ['lookup', 'fuzzy', query, '--limit', String(limit)], {
-      root,
-      signal: exec.signal,
+    return throughCache(exec, { root, kind: 'fuzzy', query, limit, includeRefs }, async () => {
+      const raw = await runCrabcc(crabccBin, ['lookup', 'fuzzy', query, '--limit', String(limit)], {
+        root,
+        signal: exec.signal,
+      })
+
+      if (!Array.isArray(raw)) {
+        return { results: [], query, total: 0 }
+      }
+
+      const hits = raw as CrabccFuzzyHit[]
+      let enriched = hits.slice(0, limit).map(hit => ({
+        name: hit.name,
+        kind: hit.kind,
+        file: hit.file,
+        line: hit.line,
+      }))
+      if (includeRefs) {
+        enriched = await Promise.all(
+          enriched.map(async (sym) => {
+            try {
+              const refs = await runCrabcc(
+                crabccBin,
+                ['lookup', 'refs', sym.name, '--limit', '0'],
+                { root, signal: exec.signal },
+              ) as CrabccRef[]
+              return { ...sym, refCount: Array.isArray(refs) ? refs.length : 0 }
+            } catch {
+              return { ...sym, refCount: 0 }
+            }
+          }),
+        )
+      }
+
+      return { results: enriched, query, total: enriched.length }
     })
-
-    if (!Array.isArray(raw)) {
-      return { results: [], query, total: 0 }
-    }
-
-    const hits = raw as CrabccFuzzyHit[]
-    let enriched = hits.slice(0, limit).map(hit => ({
-      name: hit.name,
-      kind: hit.kind,
-      file: hit.file,
-      line: hit.line,
-    }))
-    if (includeRefs) {
-      enriched = await Promise.all(
-        enriched.map(async (sym) => {
-          try {
-            const refs = await runCrabcc(
-              crabccBin,
-              ['lookup', 'refs', sym.name, '--limit', '0'],
-              { root, signal: exec.signal },
-            ) as CrabccRef[]
-            return { ...sym, refCount: Array.isArray(refs) ? refs.length : 0 }
-          } catch {
-            return { ...sym, refCount: 0 }
-          }
-        }),
-      )
-    }
-
-    return { results: enriched, query, total: enriched.length }
   },
   presentCall(args) {
     return {
@@ -280,28 +359,30 @@ const gotoDefinitionTool = defineTool({
     const root = args.root ?? defaultRoot
     const symbol = args.symbol
 
-    const raw = await runCrabcc(crabccBin, ['lookup', 'sym', symbol], {
-      root,
-      signal: exec.signal,
+    return throughCache(exec, { root, kind: 'sym', query: symbol, limit: 0, includeRefs: false }, async () => {
+      const raw = await runCrabcc(crabccBin, ['lookup', 'sym', symbol], {
+        root,
+        signal: exec.signal,
+      })
+
+      if (!Array.isArray(raw) || raw.length === 0) {
+        return { found: false, symbol }
+      }
+
+      const sym = (raw as CrabccSymbol[])[0]
+      if (!sym) {
+        return { found: false, symbol }
+      }
+
+      return {
+        found: true,
+        symbol: sym.name,
+        kind: sym.kind,
+        file: sym.file,
+        line: sym.line_start,
+        signature: sym.signature ?? '',
+      }
     })
-
-    if (!Array.isArray(raw) || raw.length === 0) {
-      return { found: false, symbol }
-    }
-
-    const sym = (raw as CrabccSymbol[])[0]
-    if (!sym) {
-      return { found: false, symbol }
-    }
-
-    return {
-      found: true,
-      symbol: sym.name,
-      kind: sym.kind,
-      file: sym.file,
-      line: sym.line_start,
-      signature: sym.signature ?? '',
-    }
   },
   presentCall(args) {
     return {
@@ -362,26 +443,28 @@ const findReferencesTool = defineTool({
     const symbol = args.symbol
     const limit = args.limit ?? 50
 
-    const raw = await runCrabcc(crabccBin, ['lookup', 'refs', symbol, '--limit', String(limit)], {
-      root,
-      signal: exec.signal,
+    return throughCache(exec, { root, kind: 'refs', query: symbol, limit, includeRefs: false }, async () => {
+      const raw = await runCrabcc(crabccBin, ['lookup', 'refs', symbol, '--limit', String(limit)], {
+        root,
+        signal: exec.signal,
+      })
+
+      if (!Array.isArray(raw)) {
+        return { symbol, references: [], total: 0 }
+      }
+
+      const refs = raw as CrabccRef[]
+      return {
+        symbol,
+        references: refs.slice(0, limit).map(ref => ({
+          file: ref.file,
+          line: ref.line,
+          column: ref.col,
+          ...(ref.snippet === undefined ? {} : { snippet: ref.snippet }),
+        })),
+        total: refs.length,
+      }
     })
-
-    if (!Array.isArray(raw)) {
-      return { symbol, references: [], total: 0 }
-    }
-
-    const refs = raw as CrabccRef[]
-    return {
-      symbol,
-      references: refs.slice(0, limit).map(ref => ({
-        file: ref.file,
-        line: ref.line,
-        column: ref.col,
-        ...(ref.snippet === undefined ? {} : { snippet: ref.snippet }),
-      })),
-      total: refs.length,
-    }
   },
   presentCall(args) {
     return {
@@ -401,6 +484,8 @@ const findReferencesTool = defineTool({
     }
   },
 })
+
+/* jscpd:ignore-end */
 
 const CRABCC_SKILL_CONTENT = `# crabcc Symbol Index Tools
 
@@ -530,3 +615,5 @@ export function apply(ctx: Context, config: Config = {}): void {
   const provider = new CrabccSkillProvider(resolvedConfig)
   ctx.skills.registerProvider(() => provider)
 }
+
+export { codeSearchTool, gotoDefinitionTool, findReferencesTool }
