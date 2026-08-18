@@ -5,6 +5,10 @@
 [![Org](https://img.shields.io/badge/org-8b--is-purple.svg)](https://github.com/8b-is)
 [![Upstream](https://img.shields.io/badge/upstream-deepseek--harness-lightgrey.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
+<p align="center">
+  <img src="assets/hero-deepsiper-enthea.jpg" alt="Deepsiper Enthea — Sovereign LLM Evaluation Harness" width="100%">
+</p>
+
 English | [中文](README.zh.md)
 
 **Deepsiper Enthea** (`deepsiper-enthea`) is a sovereign, agent-driven LLM evaluation harness forked from [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) (`dsh` 0.1.0-rc.7). It provides end-to-end multi-model orchestration, self-hosted and sovereign backend integration, Cordis-powered extensible plugin pipelines, and JSON-RPC automation for modern LLM evaluation workflows.

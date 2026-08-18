@@ -5,6 +5,10 @@
 [![Org](https://img.shields.io/badge/org-8b--is-purple.svg)](https://github.com/8b-is)
 [![Upstream](https://img.shields.io/badge/upstream-deepseek--harness-lightgrey.svg)](https://github.com/deepseek-ai/deepseek-harness)
 
+<p align="center">
+  <img src="assets/hero-deepsiper-enthea.jpg" alt="Deepsiper Enthea — 主权 LLM 评估 Harness" width="100%">
+</p>
+
 [English](README.md) | 中文
 
 **Deepsiper Enthea** (`deepsiper-enthea`) 是一个基于 [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) (`dsh` 0.1.0-rc.7) 分叉的主权、智能体驱动型 LLM 评估 Harness。它为现代大语言模型评测工作流提供了多模型编排、私有主权后端集成、Cordis 插件管道与 JSON-RPC 自动化支持。

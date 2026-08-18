@@ -73,6 +73,46 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted, onLaunchConsole, onSon
             <div className="metric-pod-label">Cordis Spatiotemporal Plugins</div>
           </div>
         </div>
+
+        {/* Hero Visual Singularity Showcase Frame */}
+        <div style={{
+          marginTop: 48,
+          position: 'relative',
+          borderRadius: 16,
+          overflow: 'hidden',
+          border: '1px solid rgba(56, 189, 248, 0.3)',
+          boxShadow: '0 0 50px rgba(6, 182, 212, 0.25), 0 20px 40px rgba(0, 0, 0, 0.8)',
+          background: 'rgba(3, 7, 18, 0.9)',
+        }}>
+          <img
+            src="/hero-deepsiper-enthea.jpg"
+            alt="DeepSiper Enthea — Quantum Singularity Kernel & Swarm Orbit"
+            style={{
+              width: '100%',
+              height: 'auto',
+              display: 'block',
+              filter: 'contrast(1.05) saturate(1.1)',
+            }}
+          />
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: '16px 24px',
+            background: 'linear-gradient(to top, rgba(3, 7, 18, 0.95), transparent)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.75rem',
+            color: 'var(--accent-cyan)',
+            letterSpacing: '0.08em',
+          }}>
+            <span>ψ(x, t) · SINGULARITY KERNEL &amp; SWARM LATTICE</span>
+            <span style={{ color: '#a29bfe' }}>AIR-GAPPED ENTHEAI BACKEND</span>
+          </div>
+        </div>
       </div>
     </section>
   )
