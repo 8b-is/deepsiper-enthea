@@ -12,6 +12,22 @@
  */
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 
+/**
+ * A native function's `Function.prototype.toString` output is fixed at
+ * creation, so the (notoriously slow) call can be cached per function object.
+ * A forged callable has its own function identity and misses the cache.
+ */
+const nativeToStringCache = new WeakMap<(...args: never[]) => unknown, string>()
+
+function nativeToString(fn: (...args: never[]) => unknown): string {
+  let text = nativeToStringCache.get(fn)
+  if (text === undefined) {
+    text = Function.prototype.toString.call(fn)
+    nativeToStringCache.set(fn, text)
+  }
+  return text
+}
+
 /** Whether a realm-owned intrinsic prototype is backed by its native constructor. */
 function hasIntrinsicConstructor(prototype: object, name: 'Array' | 'Object'): boolean {
   const descriptor = Object.getOwnPropertyDescriptor(prototype, 'constructor')
@@ -20,7 +36,7 @@ function hasIntrinsicConstructor(prototype: object, name: 'Array' | 'Object'): b
   try {
     return constructor.name === name
       && constructor.prototype === prototype
-      && Function.prototype.toString.call(constructor) === `function ${name}() { [native code] }`
+      && nativeToString(constructor as (...args: never[]) => unknown) === `function ${name}() { [native code] }`
   } catch {
     return false
   }
@@ -76,13 +92,20 @@ function walkJsonValue(value: unknown, detach: boolean): JsonValue | true | unde
       root = item
     } else if (destination.kind === 'array') {
       destination.target[destination.index] = item
-    } else {
+    } else if (destination.key === '__proto__') {
+      // Plain assignment would run the __proto__ setter and replace the
+      // snapshot prototype instead of creating the own property.
       Object.defineProperty(destination.target, destination.key, {
         value: item,
         enumerable: true,
         configurable: true,
         writable: true,
       })
+    } else {
+      // Plain assignment creates the same `{ value, enumerable: true,
+      // configurable: true, writable: true }` descriptor as
+      // Object.defineProperty at a fraction of the per-property cost.
+      destination.target[destination.key] = item
     }
   }
 
