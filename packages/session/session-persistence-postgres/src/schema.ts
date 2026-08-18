@@ -198,12 +198,12 @@ export async function bootstrapBus(client: PoolClient, label: string): Promise<{
     // re-running CREATE TABLE IF NOT EXISTS, but the pg-mem test emulator
     // cannot re-parse it against an existing table, and every backend mount
     // (resume/HMR/adoption) re-bootstraps over shared storage.
-    const present = await client.query<{ n: number }>(
+    const present = await client.query<{ n: number | string }>(
       `SELECT count(*) AS n FROM information_schema.tables
        WHERE table_schema = 'public' AND table_name = 'dsh_bus_state'`,
     )
     /* v8 ignore next 3 -- a COUNT(*) aggregate always yields one row; the fallback is defensive */
-    const exists = present.rows[0]?.n ?? 0
+    const exists = Number(present.rows[0]?.n ?? 0)
     if (exists === 0) {
       await client.query(`
       CREATE TABLE IF NOT EXISTS dsh_bus_state (

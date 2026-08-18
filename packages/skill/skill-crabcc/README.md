@@ -40,7 +40,7 @@ Each tool also accepts a per-call `root` override; queries default to
 Mounting [`@deepseek-ai/dsh-crabcc-cache-postgres`](../crabcc-cache-postgres/README.md)
 registers `ctx.crabccCache`; the tools then serve repeat lookups from the
 durable cache instead of spawning crabcc. The cache key covers every query
-input, results are byte-identical to a direct run, and a down or absent cache
+input, results are semantically identical to a direct run, and a down or absent cache
 degrades silently back to direct CLI execution. TTL expiry bounds staleness;
 call `invalidate(root)` after a `crabcc index` rebuild for immediate freshness.
 

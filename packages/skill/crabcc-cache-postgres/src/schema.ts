@@ -31,22 +31,24 @@ export function cacheKeyBindings(key: CrabccCacheKey): [string, string, string, 
 }
 
 /**
- * Bootstrap the cache table idempotently under one transaction, gated on a
- * probe query rather than `information_schema`: real Postgres tolerates
- * re-running `CREATE TABLE IF NOT EXISTS`, but the pg-mem emulator cannot
- * re-parse it against an existing table, and a probe sidesteps the catalog.
- * @param client - a dedicated connection holding the bootstrap transaction.
+ * Bootstrap the cache table idempotently, gated on a probe query rather than
+ * `information_schema`: real Postgres tolerates re-running `CREATE TABLE IF
+ * NOT EXISTS`, but the pg-mem emulator cannot re-parse it against an existing
+ * table. The probe runs BEFORE the transaction — a failed statement inside a
+ * Postgres transaction aborts it, so the missing-table probe must not poison
+ * the DDL transaction.
+ * @param client - a dedicated connection.
  */
 export async function bootstrapCache(client: PoolClient): Promise<void> {
+  let exists = true
+  try {
+    await client.query('SELECT 1 FROM crabcc_cache LIMIT 0')
+  } catch {
+    // The relation does not exist yet (or is unreadable) — run the DDL.
+    exists = false
+  }
   await client.query('BEGIN')
   try {
-    let exists = true
-    try {
-      await client.query('SELECT 1 FROM crabcc_cache LIMIT 0')
-    } catch {
-      // The relation does not exist yet (or is unreadable) — run the DDL.
-      exists = false
-    }
     if (!exists) {
       await client.query(`
       CREATE TABLE IF NOT EXISTS crabcc_cache (

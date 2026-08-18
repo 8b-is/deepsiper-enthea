@@ -30,7 +30,7 @@ never to wrong answers.
 - **Lazy TTL expiry**: `get` compares `stored_at` against a cutoff; a stale
   entry is treated as a miss. `invalidate(root?)` drops entries immediately.
 - **Result payloads are JSONB** — the exact tool result is stored and returned
-  verbatim on a hit, so the model sees byte-identical output either way.
+  verbatim on a hit, so the model sees semantically identical output either way.
 - **Write-through on miss**; a failed cache read or write never fails the tool.
 
 ## Development
@@ -47,7 +47,7 @@ pnpm test   # vitest: cache mechanics + seam, 100% src coverage
 ## Model Experience
 
 None — this is a lookup cache; nothing here reaches a model request beyond the
-cached tool result, which is byte-identical to a direct crabcc run.
+cached tool result, which is semantically identical to a direct crabcc run.
 
 ## Known Limitations and Deferred Work
 

@@ -1,0 +1,21 @@
+# ROYAL-WHALE composition: wire the Postgres durable sidecar (session-persistence
+# backend) and the crabcc durable cache against a real local Postgres, plus the
+# skill-crabcc tools. Test-only; the driver asserts against the live bus.
+- id: sessions
+  name: '@deepseek-ai/dsh-session'
+
+- id: skills
+  name: '@deepseek-ai/dsh-skill'
+
+- id: persistence
+  name: '@deepseek-ai/dsh-session-persistence-postgres'
+  config:
+    connectionString: !!js process.env.ROYAL_WHALE_PG_URL
+
+- id: crabcc-cache
+  name: '@deepseek-ai/dsh-crabcc-cache-postgres'
+  config:
+    connectionString: !!js process.env.ROYAL_WHALE_PG_URL
+
+- id: skill-crabcc
+  name: '@deepseek-ai/dsh-skill-crabcc'
