@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-eval",
   "description": "Agent-in-the-loop eval tool: score candidate output against configured benchmark graders",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publishConfig": {
     "access": "public"
   },
