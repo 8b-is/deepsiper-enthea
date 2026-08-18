@@ -1,0 +1,15 @@
+# dsh --patch overlay mounting the agent-driven eval tool on the eval-entheai
+# composition: score the one-turn candidate output inside the harness with
+# eval_case instead of grading outside it. In 0.2.0 a patch entry targets an
+# existing row by id; a NEW row appends via the `insert` list (no id), which
+# this overlay uses. The grader path is repo-root-relative (dsh runs from the
+# repo root).
+- insert:
+    - id: tool-eval
+      name: '@deepseek-ai/dsh-tool-eval'
+      config:
+        benchmarks:
+          fizzbuzz:
+            grader: examples/eval-entheai/grader.py
+            exec: python3
+            cases: 18

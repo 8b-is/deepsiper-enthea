@@ -97,6 +97,50 @@ The headless runner prints the final assistant message to stdout and exits 0
 on a completed turn — that text is the grader's input, so the model's claim
 never scores itself.
 
+## Extend with the eval_case tool
+
+To score the agent's output inside the harness instead of grading outside it,
+mount the eval tool as an additional overlay: a patch entry targets an
+existing row by id, so a NEW row appends via the `insert` list (no id):
+
+```yaml
+- insert:
+    - id: tool-eval
+      name: '@deepseek-ai/dsh-tool-eval'
+      config:
+        benchmarks:
+          fizzbuzz:
+            grader: examples/eval-entheai/grader.py
+            exec: python3
+            cases: 18
+```
+
+Pass the overlay alongside the entheai one (`--patch
+examples/eval-entheai/entheai.cordis.yml --patch
+examples/eval-entheai/tool-eval.patch.yml`). The agent can then call
+`eval_case(benchmark: "fizzbuzz", output: …)` and read the verdict
+`{ benchmark, pass, exitCode, detail }` directly. The grader still runs
+un-sandboxed (it `exec`s the extracted source), so grade only output you
+intend to run.
+
+
+## Keyless E2E with the stub server
+
+[`stub-server.py`](stub-server.py) is a deterministic, pure-stdlib
+OpenAI-compatible chat-completions stub for keyless end-to-end runs: it serves
+a canned `fizzbuzz` answer over SSE on `http://127.0.0.1:8000/v1`, so the
+grader PASSes. Override the answer with `STUB_ANSWER` or
+`STUB_ANSWER_FILE` (a file path). Start it in one terminal, then run
+`./examples/eval-entheai/run.sh` in another:
+
+```sh
+python3 examples/eval-entheai/stub-server.py   # terminal 1
+ENTHEAI_BASE_URL=http://127.0.0.1:8000/v1 ./examples/eval-entheai/run.sh  # terminal 2
+```
+
+The stub answers every request with the same canned text — it exercises the
+harness pipeline (headless profile, pi-ai route, SSE parsing, grading), not
+the model.
 ## Notes
 
 - `${ENTHEAI_BASE_URL:-…}` is shell syntax. The YAML loader evaluates `!!js`
