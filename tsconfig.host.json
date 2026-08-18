@@ -166,6 +166,7 @@
     { "path": "./packages/core/agent" },
     { "path": "./packages/core/agent-default-model" },
     { "path": "./packages/interaction/commands" },
+    { "path": "./packages/interaction/commands-superpowers" },
     { "path": "./packages/goal/goal" },
     { "path": "./packages/goal/tool-goal" },
     { "path": "./packages/goal/goal-round-driver" },
