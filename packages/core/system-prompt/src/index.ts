@@ -117,6 +117,8 @@ export interface PromptAssembly {
   contexts: AssembledContext[]
   tools: ToolSchema[]
   variables: Record<string, string | undefined>
+  /** Token cap for the rendered runtime-context snapshot, when the deployment sets one. */
+  contextTokenBudget?: number
 }
 
 /**
@@ -206,6 +208,13 @@ export interface Config {
    */
   appendSystemPrompt?: string
   /**
+   * Token cap for the rendered runtime-context snapshot. When the rendered
+   * contexts exceed it, the highest-ordered contributions are kept and a
+   * truncation note is appended. Omitted disables budgeting. Token estimates
+   * use the {@link estimateTokens} heuristic.
+   */
+  contextTokenBudget?: number
+  /**
    * Model-facing tool names in order, with {@link TOOL_ORDER_REST} exactly once.
    * Invalid fields fail at load and unknown names fail at assembly; known names
    * hidden in one scope may be absent there. Omitted means lexicographic order.
@@ -256,14 +265,64 @@ export function joinContextSections(sections: readonly ContextSnapshotSection[])
  *
  * {@link renderContextSnapshot} joins these for the model; a consumer that
  * presents the snapshot uses them to attribute each part to the subsystem that
- * contributed it, without re-splitting the joined prose.
+ * contributed it, without re-splitting the joined prose. When the assembly
+ * carries a {@link PromptAssembly.contextTokenBudget} that the rendered
+ * contexts exceed, the highest-ordered contributions are kept and a truncation
+ * note is appended as a named section so the model knows the snapshot is
+ * partial.
  * @param assembly - the assembly whose contexts and variables to render.
  * @returns one entry per contributing context that rendered to non-empty text.
  */
 export function renderContextSections(assembly: PromptAssembly): ContextSnapshotSection[] {
-  return assembly.contexts
+  const sections = assembly.contexts
     .map(context => ({ name: context.name, text: interpolate(context, assembly.variables, 'context') }))
     .filter(section => section.text.length > 0)
+  return applyContextBudget(sections, assembly.contextTokenBudget)
+}
+
+/** Heuristic characters-per-token used by {@link estimateTokens}; DeepSeek tokenizers average 2–4 chars/token. */
+export const CHARS_PER_TOKEN = 4
+
+/**
+ * A cheap, tokenizer-free token estimate used by the context budget governor.
+ * @param text - rendered prompt text.
+ * @returns the ceiling of `length / {@link CHARS_PER_TOKEN}`.
+ */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / CHARS_PER_TOKEN)
+}
+
+/** The synthetic named section appended when the context budget truncated contributions. */
+export const CONTEXT_TRUNCATED_SECTION = 'context:truncated'
+
+/**
+ * Keep the highest-ordered context contributions that fit an optional token
+ * budget, appending a truncation note when content was dropped.
+ * @param sections - rendered sections in ascending `order`.
+ * @param budget - token cap for the joined snapshot; `undefined` keeps everything.
+ * @returns the budgeted sections, including a `context:truncated` note on truncation.
+ */
+export function applyContextBudget(
+  sections: readonly ContextSnapshotSection[],
+  budget: number | undefined,
+): ContextSnapshotSection[] {
+  if (budget === undefined || sections.length === 0) return [...sections]
+  let used = 0
+  const kept: ContextSnapshotSection[] = []
+  for (const section of sections) {
+    const estimate = estimateTokens(section.text)
+    if (used + estimate > budget) break
+    kept.push(section)
+    used += estimate
+  }
+  if (kept.length < sections.length) {
+    const omitted = sections.length - kept.length
+    kept.push({
+      name: CONTEXT_TRUNCATED_SECTION,
+      text: `Context budget (${budget} tokens) exceeded: ${omitted} lower-ordered context contribution${omitted === 1 ? '' : 's'} omitted.`,
+    })
+  }
+  return kept
 }
 
 /** Interpolate one section or context and attribute diagnostics to its owning input. */
@@ -353,6 +412,7 @@ export class SystemPrompt extends Service {
     includeRuntimeContext: z.boolean().default(true),
     persona: z.string().default(''),
     appendSystemPrompt: z.string().default(''),
+    contextTokenBudget: z.natural().min(1),
     // Preserve omission because an explicit empty order lacks the rest marker.
     toolOrder: z.array(z.string()).default(undefined as unknown as string[]),
   })
@@ -362,10 +422,12 @@ export class SystemPrompt extends Service {
     () => { this.ctx.emit('system-prompt/change') },
   )
   private readonly toolOrder: string[] | undefined
+  private readonly contextTokenBudget: number | undefined
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'systemPrompt')
     this.toolOrder = validateToolOrder(config.toolOrder)
+    this.contextTokenBudget = config.contextTokenBudget
     // Keep harness-owned openers independent of the selected loop plugin.
     if (config.includeHarnessIdentity ?? true) {
       this.section({
@@ -545,6 +607,7 @@ export class SystemPrompt extends Service {
           })),
       tools: orderTools(collected, this.toolOrder, knownNames),
       variables,
+      ...this.contextTokenBudget === undefined ? {} : { contextTokenBudget: this.contextTokenBudget },
     }
     const transformed = await this.ctx.waterfall(
       scopeTarget(this, scope), 'system-prompt/assemble', assembly, context,

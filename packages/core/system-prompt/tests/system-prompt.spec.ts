@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import SystemPrompt, { AssembleContext, PromptAssembly, renderContextSnapshot, renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import SystemPrompt, {
+  AssembleContext,
+  CONTEXT_TRUNCATED_SECTION,
+  PromptAssembly,
+  estimateTokens,
+  renderContextSections,
+  renderContextSnapshot,
+  renderPrompt,
+} from '@deepseek-ai/dsh-system-prompt'
 
 /**
  * Every assembly carries the plugin's own built-ins — `harness:identity`
@@ -390,6 +398,97 @@ describe('SystemPrompt', () => {
       tools: [],
       variables: {},
     })).toThrow('unknown prompt variable "{{missing}}" in context "policy"; registered variables: (none)')
+  })
+
+  describe('context token budget', () => {
+    it('estimates tokens from character length with the chars/4 ceiling heuristic', () => {
+      expect(estimateTokens('')).toBe(0)
+      expect(estimateTokens('abcd')).toBe(1)
+      expect(estimateTokens('abcde')).toBe(2)
+    })
+
+    it('keeps every context when no budget is configured', async () => {
+      const ctx = new Context()
+      await ctx.plugin(SystemPrompt)
+      ctx.systemPrompt.context({ name: 'first', order: 0, text: 'one' })
+      ctx.systemPrompt.context({ name: 'second', order: 1, text: 'two' })
+      const sections = renderContextSections(await ctx.systemPrompt.assemble())
+      expect(sections.map(section => section.name)).toEqual(['first', 'second'])
+      expect(sections.some(section => section.name === CONTEXT_TRUNCATED_SECTION)).toBe(false)
+    })
+
+    it('keeps the highest-ordered contexts that fit and notes the omission', async () => {
+      const ctx = new Context()
+      await ctx.plugin(SystemPrompt, { contextTokenBudget: 3 })
+      ctx.systemPrompt.context({ name: 'first', order: 0, text: 'abcd' })
+      ctx.systemPrompt.context({ name: 'second', order: 1, text: 'abcdefgh' })
+      ctx.systemPrompt.context({ name: 'third', order: 2, text: 'abcdefghijkl' })
+
+      const sections = renderContextSections(await ctx.systemPrompt.assemble())
+      expect(sections.map(section => section.name)).toEqual([
+        'first',
+        'second',
+        CONTEXT_TRUNCATED_SECTION,
+      ])
+      expect(sections.at(-1)!.text)
+        .toBe('Context budget (3 tokens) exceeded: 1 lower-ordered context contribution omitted.')
+      const snapshot = renderContextSnapshot(await ctx.systemPrompt.assemble())
+      expect(snapshot).toContain('Context budget (3 tokens) exceeded: 1 lower-ordered context contribution omitted.')
+    })
+
+    it('carries the budget on the assembly and keeps everything when it fits', async () => {
+      const ctx = new Context()
+      await ctx.plugin(SystemPrompt, { contextTokenBudget: 1000 })
+      ctx.systemPrompt.context({ name: 'first', order: 0, text: 'abcd' })
+      ctx.systemPrompt.context({ name: 'second', order: 1, text: 'abcdefgh' })
+      const assembly = await ctx.systemPrompt.assemble()
+      expect(assembly.contextTokenBudget).toBe(1000)
+      const sections = renderContextSections(assembly)
+      expect(sections.map(section => section.name)).toEqual(['first', 'second'])
+    })
+
+    it('applies the budget to a hand-built assembly and handles an empty context list', () => {
+      const truncated = renderContextSections({
+        sections: [],
+        contexts: [
+          { name: 'a', text: 'xxxx' },
+          { name: 'b', text: 'xxxxx' },
+        ],
+        tools: [],
+        variables: {},
+        contextTokenBudget: 2,
+      })
+      expect(truncated.map(section => section.name)).toEqual(['a', CONTEXT_TRUNCATED_SECTION])
+      const plural = renderContextSections({
+        sections: [],
+        contexts: [
+          { name: 'a', text: 'xxxx' },
+          { name: 'b', text: 'xxxx' },
+          { name: 'c', text: 'xxxx' },
+        ],
+        tools: [],
+        variables: {},
+        contextTokenBudget: 1,
+      })
+      expect(plural.map(section => section.name)).toEqual(['a', CONTEXT_TRUNCATED_SECTION])
+      expect(plural.at(-1)!.text).toBe(
+        'Context budget (1 tokens) exceeded: 2 lower-ordered context contributions omitted.',
+      )
+      const empty = renderContextSections({
+        sections: [],
+        contexts: [],
+        tools: [],
+        variables: {},
+        contextTokenBudget: 2,
+      })
+      expect(empty).toEqual([])
+    })
+
+    it('rejects a non-positive budget at load', async () => {
+      const ctx = new Context()
+      await expect(ctx.plugin(SystemPrompt, { contextTokenBudget: 0 })).rejects.toThrow()
+      await expect(ctx.plugin(SystemPrompt, { contextTokenBudget: -5 })).rejects.toThrow()
+    })
   })
 
   it('emits system-prompt/change when a tool provider is registered and disposed', async () => {
