@@ -215,6 +215,20 @@ export interface Config {
    */
   contextTokenBudget?: number
   /**
+   * Strip JSON-Schema wire noise (`examples`, `default`,
+   * `additionalProperties`) from assembled tool schemas (default true).
+   * Deterministic; the model still receives every name, description, and
+   * parameter guidance.
+   */
+  compactToolSchemas?: boolean
+  /**
+   * Serialized byte cap for the assembled tool schemas. When the compacted
+   * schemas exceed it, the longest tool and parameter-property descriptions are
+   * truncated (with an ellipsis, never below a floor) until the cap fits.
+   * Omitted disables the budget.
+   */
+  toolSchemaBytes?: number
+  /**
    * Model-facing tool names in order, with {@link TOOL_ORDER_REST} exactly once.
    * Invalid fields fail at load and unknown names fail at assembly; known names
    * hidden in one scope may be absent there. Omitted means lexicographic order.
@@ -325,6 +339,120 @@ export function applyContextBudget(
   return kept
 }
 
+/** Keys stripped from parameter schemas as wire noise (no model guidance lost). */
+const SCHEMA_NOISE_KEYS = new Set(['examples', 'default', 'additionalProperties'])
+
+/** Recursively strip wire-noise keys from one JSON-Schema value. */
+function compactSchemaValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(compactSchemaValue)
+  if (typeof value !== 'object' || value === null) return value
+  const out: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(value)) {
+    if (SCHEMA_NOISE_KEYS.has(key)) continue
+    out[key] = compactSchemaValue(child)
+  }
+  return out
+}
+
+/**
+ * Deterministically strip JSON-Schema wire noise from assembled tool schemas:
+ * `examples`, `default`, and `additionalProperties` never reach the model.
+ * Every name, description, and parameter guidance survives.
+ * @param tools - the assembled tool schemas in canonical order.
+ * @returns the compacted schemas.
+ */
+export function compactToolSchemas(tools: readonly ToolSchema[]): ToolSchema[] {
+  return tools.map(tool => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: compactSchemaValue(tool.parameters) as Record<string, unknown>,
+  }))
+}
+
+/** Floor every description keeps under the byte budget. */
+const TOOL_DESCRIPTION_FLOOR = 60
+const PARAM_DESCRIPTION_FLOOR = 40
+
+/** Truncate a description to a floor with an ellipsis marker. */
+function trimDescription(text: string, floor: number): string {
+  /* v8 ignore next 2 -- callers only trim descriptions above their floor */
+  if (text.length <= floor) return text
+  return `${text.slice(0, Math.max(1, floor - 1))}…`
+}
+
+/**
+ * Shrink assembled tool schemas to fit a serialized byte cap by truncating the
+ * longest tool description, then the longest parameter-property description,
+ * until the cap fits or every description sits at its floor. Deterministic
+ * (longest first, ties by name); the trimmed schemas are exactly what the
+ * model receives and what the durable header logs.
+ * @param tools - assembled tool schemas in canonical order.
+ * @param byteCap - maximum serialized bytes.
+ * @returns the budgeted schemas.
+ */
+export function applyToolSchemaBudget(tools: readonly ToolSchema[], byteCap: number): ToolSchema[] {
+  const result = tools.map(tool => ({
+    ...tool,
+    parameters: structuredClone(tool.parameters),
+  }))
+  const underCap = (): boolean => JSON.stringify(result).length <= byteCap
+  if (underCap()) return result
+
+  // Truncate tool descriptions longest-first.
+  while (!underCap()) {
+    let target = -1
+    let longest = -1
+    for (let i = 0; i < result.length; i++) {
+      const tool = result[i]
+      /* v8 ignore next 2 -- result is a dense mapped array; the index guard is defensive */
+      if (tool === undefined) continue
+      if (tool.description.length > longest && tool.description.length > TOOL_DESCRIPTION_FLOOR) {
+        longest = tool.description.length
+        target = i
+      }
+    }
+    if (target < 0) break
+    const tool = result[target]
+    /* v8 ignore next 2 -- target is a valid index into the dense array */
+    if (tool === undefined) break
+    tool.description = trimDescription(tool.description, TOOL_DESCRIPTION_FLOOR)
+  }
+
+  // Then parameter-property descriptions, longest-first, descending into each tool.
+  while (!underCap()) {
+    let target: { tool: number; prop: string; spec: { description?: string } } | undefined
+    let longest = -1
+    for (let tool = 0; tool < result.length; tool++) {
+      const toolSchema = result[tool]
+      /* v8 ignore next 2 -- result is a dense mapped array; the index guard is defensive */
+      if (toolSchema === undefined) continue
+      const properties = (toolSchema.parameters as { properties?: Record<string, { description?: string }> }).properties
+      if (properties === undefined) continue
+      for (const [prop, spec] of Object.entries(properties)) {
+        const description = spec.description
+        if (description !== undefined && description.length > longest && description.length > PARAM_DESCRIPTION_FLOOR) {
+          longest = description.length
+          target = { tool, prop, spec }
+        }
+      }
+    }
+    if (target === undefined) break
+    const toolSchema = result[target.tool]
+    /* v8 ignore next 2 -- target.tool is a valid index into the dense array */
+    if (toolSchema === undefined) break
+    const properties = (toolSchema.parameters as { properties?: Record<string, { description?: string }> }).properties
+    /* v8 ignore next 2 -- the selected target's properties always exist (it was chosen from them) */
+    if (properties === undefined) break
+    properties[target.prop] = {
+      ...target.spec,
+      /* v8 ignore next 1 -- the selected spec's description is always defined */
+      description: trimDescription(target.spec.description ?? '', PARAM_DESCRIPTION_FLOOR),
+    }
+  }
+
+  return result
+}
+
 /** Interpolate one section or context and attribute diagnostics to its owning input. */
 function interpolate(
   input: AssembledSection | AssembledContext,
@@ -413,6 +541,8 @@ export class SystemPrompt extends Service {
     persona: z.string().default(''),
     appendSystemPrompt: z.string().default(''),
     contextTokenBudget: z.natural().min(1),
+    compactToolSchemas: z.boolean().default(true),
+    toolSchemaBytes: z.natural().min(1),
     // Preserve omission because an explicit empty order lacks the rest marker.
     toolOrder: z.array(z.string()).default(undefined as unknown as string[]),
   })
@@ -423,11 +553,15 @@ export class SystemPrompt extends Service {
   )
   private readonly toolOrder: string[] | undefined
   private readonly contextTokenBudget: number | undefined
+  private readonly compactToolSchemas: boolean
+  private readonly toolSchemaBytes: number | undefined
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'systemPrompt')
     this.toolOrder = validateToolOrder(config.toolOrder)
     this.contextTokenBudget = config.contextTokenBudget
+    this.compactToolSchemas = config.compactToolSchemas ?? true
+    this.toolSchemaBytes = config.toolSchemaBytes
     // Keep harness-owned openers independent of the selected loop plugin.
     if (config.includeHarnessIdentity ?? true) {
       this.section({
@@ -595,6 +729,13 @@ export class SystemPrompt extends Service {
         if (section.complete === true) completeSection = { ...assembled }
         return assembled
       })
+    const orderedTools = orderTools(collected, this.toolOrder, knownNames)
+    const compacted = this.compactToolSchemas
+      ? compactToolSchemas(orderedTools)
+      : orderedTools
+    const budgetedTools = this.toolSchemaBytes === undefined
+      ? compacted
+      : applyToolSchemaBudget(compacted, this.toolSchemaBytes)
     const assembly: PromptAssembly = {
       sections,
       contexts: runtimeContextSuppressed
@@ -605,7 +746,7 @@ export class SystemPrompt extends Service {
             name: entry.name,
             text: typeof entry.text === 'function' ? entry.text(context) : entry.text,
           })),
-      tools: orderTools(collected, this.toolOrder, knownNames),
+      tools: budgetedTools,
       variables,
       ...this.contextTokenBudget === undefined ? {} : { contextTokenBudget: this.contextTokenBudget },
     }

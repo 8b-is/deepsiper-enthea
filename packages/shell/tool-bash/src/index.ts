@@ -74,22 +74,12 @@ function bashDescription(backgroundEnabled: boolean, escalationModes: readonly S
   const base = 'Execute a bash command (`bash -c`) and return its stdout/stderr. '
     + 'Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — '
     + 'pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. '
-    + `Current harness environment facts are exposed through managed \`$${DSH_ENV_PREFIX}*\` variables; inspect them when needed. `
-    + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. '
+    + `Harness environment facts are exposed through managed \`$${DSH_ENV_PREFIX}*\` variables. `
+    + 'Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a command bug. '
     + 'Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. '
     + background
   if (escalationModes.length === 0) return base
-  return base + ' Attempting a command the sandbox may deny is safe and expected: run it and read the '
-    + 'marker rather than assuming the denial. When a command is denied and a wider mode would let it '
-    + 'succeed, escalate immediately in the same turn — the one sanctioned exception to a denial: retry '
-    + 'the exact same command once with `sandbox_permissions` (the narrowest wider mode that suffices) '
-    + 'plus a one-sentence `justification`. Do not detour through chat to ask permission first — the '
-    + 'approval prompt raised by that retry is how the user consents. If the session states approval '
-    + 'prompts are disabled, there is no exception: a denial is final — do not set `sandbox_permissions`. '
-    + 'Never escalate speculatively: ground the request in a real denial — normally the one this command '
-    + 'just hit; escalating up front is fine only when this session already denied the same access. '
-    + 'A rejected escalation is final for that command — stop and explain, never work around '
-    + 'it — but it does not forbid attempting or escalating other commands later.'
+  return base + ' A denied command is expected, not a bug: read the marker rather than assuming the denial, and when a wider mode would let the command succeed, escalate immediately in the same turn — ' + 'the one sanctioned exception: retry the exact same command once with `sandbox_permissions` (the narrowest wider mode that suffices) ' + 'plus a one-sentence `justification`. Do not detour through chat to ask permission first — the approval prompt raised by that retry is how the user consents. If the session states approval ' + 'prompts are disabled, there is no exception: a denial is final — do not set `sandbox_permissions`. ' + 'Never escalate speculatively: ground the request in a real denial — normally the one this command ' + 'just hit; escalating up front is fine only when this session already denied the same access. ' + 'A rejected escalation is final for that command — stop and explain, never work around ' + 'it — but it does not forbid attempting or escalating other commands later.'
 }
 
 /**
@@ -247,9 +237,8 @@ export function apply(ctx: Context, config: Config = {}): void {
       description: {
         type: 'string',
         required: true,
-        description: 'Clear, concise description of what this command does in active voice, '
-          + '5-10 words (shown in the UI). Examples: "ls" → "List files in current directory"; '
-          + '"git status" → "Show working tree status"; "npm install" → "Install package dependencies".',
+        description: 'Short active-voice summary of the command, 5-10 words, shown in the UI. '
+          + 'Examples: "ls" → "List files in current directory"; "git status" → "Show working tree status".',
       },
       timeoutMs: { type: 'number', description: 'Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry.' },
       workdir: { type: 'string', description: 'Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.' },

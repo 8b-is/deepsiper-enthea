@@ -4,6 +4,8 @@ import SystemPrompt, {
   AssembleContext,
   CONTEXT_TRUNCATED_SECTION,
   PromptAssembly,
+  applyToolSchemaBudget,
+  compactToolSchemas,
   estimateTokens,
   renderContextSections,
   renderContextSnapshot,
@@ -398,6 +400,115 @@ describe('SystemPrompt', () => {
       tools: [],
       variables: {},
     })).toThrow('unknown prompt variable "{{missing}}" in context "policy"; registered variables: (none)')
+  })
+
+  describe('tool schema governor', () => {
+    const LONG_DESCRIPTION = 'x'.repeat(200)
+    const tools = [
+      {
+        name: 'bash',
+        description: LONG_DESCRIPTION,
+        parameters: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            command: {
+              type: 'string',
+              description: 'y'.repeat(120),
+              examples: ['ls -la'],
+              default: 'ls',
+            },
+            recursive: { type: 'boolean', description: 'z'.repeat(50) },
+          },
+          required: ['command'],
+        },
+      },
+      { name: 'read', description: 'short', parameters: { type: 'object', properties: {} } },
+      { name: 'no-props', description: 'n'.repeat(90), parameters: { type: 'object' } },
+    ]
+
+    it('compacts schemas by stripping wire noise recursively', () => {
+      const compacted = compactToolSchemas(tools)
+      const bash = compacted[0]!
+      expect(bash.description).toBe(LONG_DESCRIPTION)
+      const command = (bash.parameters.properties as Record<string, { type: string; description: string }>)['command']!
+      expect(command.description).toBe('y'.repeat(120))
+      expect('examples' in command).toBe(false)
+      expect('default' in command).toBe(false)
+      expect('additionalProperties' in bash.parameters).toBe(false)
+      const params = JSON.stringify(compacted)
+      expect(params).not.toContain('ls -la')
+      expect(params).not.toContain('additionalProperties')
+      // enum/required/type survive.
+      expect(params).toContain('"required"')
+      expect(params).toContain('"type"')
+    })
+
+    it('leaves tools untouched when they fit the byte cap', () => {
+      const big = 1_000_000
+      const budgeted = applyToolSchemaBudget(tools, big)
+      expect(JSON.stringify(budgeted).length).toBeLessThanOrEqual(big)
+      expect(budgeted[0]!.description).toBe(LONG_DESCRIPTION)
+      expect((budgeted[0]!.parameters.properties as Record<string, { description: string }>)['command']!.description)
+        .toBe('y'.repeat(120))
+    })
+
+    it('truncates the longest tool description, then parameter descriptions, to fit the cap', () => {
+      const budgeted = applyToolSchemaBudget(tools, 700)
+      expect(JSON.stringify(budgeted).length).toBeLessThanOrEqual(700)
+      expect(budgeted[0]!.description.length).toBeLessThan(LONG_DESCRIPTION.length)
+      expect(budgeted[0]!.description.endsWith('…')).toBe(true)
+      const command = (budgeted[0]!.parameters.properties as Record<string, { description: string }>)['command']!
+      expect(command.description.length).toBeLessThan(120)
+      expect(command.description.endsWith('…')).toBe(true)
+      expect(budgeted[1]!.description).toBe('short')
+    })
+
+    it('stops trimming at the description floors', () => {
+      const floor = applyToolSchemaBudget(tools, 1)
+      expect(JSON.stringify(floor).length).toBeGreaterThan(1)
+      expect(floor[0]!.description.length).toBeGreaterThanOrEqual(59)
+      const command = (floor[0]!.parameters.properties as Record<string, { description: string }>)['command']!
+      expect(command.description.length).toBeGreaterThanOrEqual(39)
+    })
+
+    it('leaves schemas untouched when compaction is disabled', async () => {
+      const ctx = new Context()
+      await ctx.plugin(SystemPrompt, { compactToolSchemas: false })
+      ctx.systemPrompt.tools(() => ({
+        schemas: [
+          {
+            name: 'bash',
+            description: 'run a command',
+            parameters: { type: 'object', additionalProperties: false, properties: { command: { type: 'string', default: 'ls' } } },
+          },
+        ],
+      }))
+      const assembly = await ctx.systemPrompt.assemble()
+      const tool = assembly.tools[0]
+      expect(tool).toBeDefined()
+      if (tool === undefined) throw new Error('expected a tool')
+      expect(tool.parameters).toHaveProperty('additionalProperties')
+      const command = (tool.parameters as { properties: Record<string, { default?: string }> }).properties.command
+      expect(command?.default).toBe('ls')
+    })
+
+    it('applies the governor inside assemble from config', async () => {
+      const ctx = new Context()
+      await ctx.plugin(SystemPrompt, { compactToolSchemas: true, toolSchemaBytes: 300 })
+      ctx.systemPrompt.tools(() => ({
+        schemas: [
+          {
+            name: 'bash',
+            description: LONG_DESCRIPTION,
+            parameters: { type: 'object', additionalProperties: false, properties: { command: { type: 'string', description: 'y'.repeat(120) } } },
+          },
+        ],
+      }))
+      const assembly = await ctx.systemPrompt.assemble()
+      expect(JSON.stringify(assembly.tools).length).toBeLessThanOrEqual(300)
+      expect(assembly.tools[0]!.description.length).toBeLessThan(LONG_DESCRIPTION.length)
+    })
   })
 
   describe('context token budget', () => {

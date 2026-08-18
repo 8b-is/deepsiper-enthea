@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-18-tool-schema-reduction.md
+2026-08-18-tool-schema-reduction.md: 9db18a3bb5c0ced1800483bafc78f20695874a4e
+2026-08-18-tool-schema-reduction.zh.md: c8a7e2fda7e28ff803ef9ff5b0e0884b8762c01a

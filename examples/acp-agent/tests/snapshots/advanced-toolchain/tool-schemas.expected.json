@@ -2,7 +2,7 @@
   "initial": [
     {
       "name": "bash",
-      "description": "Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. Current harness environment facts are exposed through managed `$DSH_*` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`. Attempting a command the sandbox may deny is safe and expected: run it and read the marker rather than assuming the denial. When a command is denied and a wider mode would let it succeed, escalate immediately in the same turn — the one sanctioned exception to a denial: retry the exact same command once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a one-sentence `justification`. Do not detour through chat to ask permission first — the approval prompt raised by that retry is how the user consents. If the session states approval prompts are disabled, there is no exception: a denial is final — do not set `sandbox_permissions`. Never escalate speculatively: ground the request in a real denial — normally the one this command just hit; escalating up front is fine only when this session already denied the same access. A rejected escalation is final for that command — stop and explain, never work around it — but it does not forbid attempting or escalating other commands later.",
+      "description": "Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. Harness environment facts are exposed through managed `$DSH_*` variables. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a command bug. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`. A denied command is expected, not a bug: read the marker rather than assuming the denial, and when a wider mode would let the command succeed, escalate immediately in the same turn — the one sanctioned exception: retry the exact same command once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a one-sentence `justification`. Do not detour through chat to ask permission first — the approval prompt raised by that retry is how the user consents. If the session states approval prompts are disabled, there is no exception: a denial is final — do not set `sandbox_permissions`. Never escalate speculatively: ground the request in a real denial — normally the one this command just hit; escalating up front is fine only when this session already denied the same access. A rejected escalation is final for that command — stop and explain, never work around it — but it does not forbid attempting or escalating other commands later.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -12,7 +12,7 @@
           },
           "description": {
             "type": "string",
-            "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+            "description": "Short active-voice summary of the command, 5-10 words, shown in the UI. Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"."
           },
           "timeoutMs": {
             "type": "number",
@@ -55,7 +55,6 @@
             "oneOf": [
               {
                 "type": "object",
-                "additionalProperties": false,
                 "properties": {
                   "kind": {
                     "type": "string",
@@ -73,7 +72,6 @@
               },
               {
                 "type": "object",
-                "additionalProperties": false,
                 "properties": {
                   "kind": {
                     "type": "string",
@@ -101,7 +99,6 @@
           },
           "code": {
             "type": "object",
-            "additionalProperties": false,
             "properties": {
               "host": {
                 "type": "string",
@@ -556,7 +553,6 @@
             "description": "The COMPLETE task list, replacing any previous list.",
             "items": {
               "type": "object",
-              "additionalProperties": false,
               "properties": {
                 "content": {
                   "type": "string",
@@ -631,7 +627,7 @@
     },
     {
       "name": "workflow",
-      "description": "Run a JavaScript workflow script that orchestrates subagents at scale. Use this for work that fans out across many independent pieces — an audit over many files, a migration, multi-angle research, adversarial verification of findings — where you write the orchestration as a script instead of delegating turn by turn.\n\nThe workflow's identity rides the `meta` parameter as JSON: required `name` (short kebab-case) and `description` strings, optional `whenToUse` string and `phases` array (`{title, detail?, provider?, model?}`). The `script` parameter is the plain JavaScript body ONLY (NOT TypeScript, and NO `export const meta` statement — meta is a parameter, not code), running with top-level await; end with `return <value>` — the value must be JSON-serializable and is this tool's result.\n\nScript-body hooks:\n- `agent(prompt, opts?): Promise<any>` — run one subagent to completion. Without `opts.schema` it resolves to the child's final text; with `opts.schema` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf — no pattern/format/numeric bounds) it resolves to the validated object. Resolves `null` when the child fails (filter with `.filter(Boolean)`). Other opts: `label` (display), `phase` (progress group), and independent `provider`/`model` LLM target overrides (either may be provided alone). Anything else (`effort`/`isolation`/`agentType`) is rejected loudly.\n- `pipeline(items, ...stages): Promise<any[]>` — run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives `(prev, item, index)`. An ordinary stage throw drops that ITEM to `null` and skips its remaining stages.\n- `parallel(thunks): Promise<any[]>` — run zero-argument functions concurrently and await ALL of them (a barrier; use only when a stage genuinely needs every prior result together). A throwing thunk resolves to `null`.\n- `phase(title)` — start a progress phase; `log(message)` — narrate progress; `args` — the tool call's `args` input, verbatim.\n\nMisused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) throw errors that ALWAYS kill the script — they never dissolve into a per-item `null`.\n\nConstraints: concurrency and total-agent caps apply; no filesystem, network, timers, or Node.js APIs are provided — the agents do the work, the script only coordinates them. The run executes in the foreground: this call returns when the whole script finishes.",
+      "description": "Run a JavaScript workflow script that orchestrates subagents at scale — for work that fans out across many independent pieces where scripted orchestration beats turn-by-turn delegation.\n\nThe `meta` parameter carries the workflow identity as JSON: required `name` (short kebab-case) and `description`, optional `whenToUse` and `phases`. The `script` parameter is the plain JavaScript body ONLY (no TypeScript, no `export const meta` — meta is a parameter), runs with top-level await, and ends with `return <value>` (JSON-serializable, this tool's result).\n\nScript hooks: `agent(prompt, opts?)` runs one subagent (`opts.schema` returns a validated object; `label`/`phase`/`provider`/`model` opts); `pipeline(items, ...stages)` runs each item through the stages independently (a stage throw drops that item to `null`); `parallel(thunks)` runs thunks concurrently and awaits all (a throwing thunk resolves `null`); `phase(title)`/`log(message)` narrate; `args` is the call input verbatim. Misused hooks throw and kill the script.\n\nConstraints: concurrency and total-agent caps apply; no filesystem, network, timers, or Node.js APIs — agents do the work, the script coordinates. Runs in the foreground: the call returns when the script finishes.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -642,7 +638,6 @@
           "meta": {
             "type": "object",
             "description": "The workflow identity block (plain JSON — never code).",
-            "additionalProperties": true,
             "properties": {
               "name": {
                 "type": "string",
@@ -661,7 +656,6 @@
                 "description": "Optional phase declarations matched by phase() calls.",
                 "items": {
                   "type": "object",
-                  "additionalProperties": true,
                   "properties": {
                     "title": {
                       "type": "string",
@@ -693,8 +687,7 @@
           },
           "args": {
             "type": "object",
-            "description": "Optional JSON input exposed to the script as the `args` global (wrap a bare list as a field, e.g. {\"files\": [...]}).",
-            "additionalProperties": true
+            "description": "Optional JSON input exposed to the script as the `args` global (wrap a bare list as a field, e.g. {\"files\": [...]})."
           }
         },
         "required": [

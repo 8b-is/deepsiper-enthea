@@ -95,8 +95,19 @@
     - id: llm-pi-ai
       name: '@deepseek-ai/dsh-llm-pi-ai'
 
+    # Session persistence: the local Postgres bus is the ROYAL-WHALE sidecar,
+    # opted in via DSH_PG_URL (the web run points it at a reachable bus). The
+    # JSONL backend is the default so keyless profiles and CI never depend on a
+    # running database. Exactly one is mounted: each entry disables the other.
+    - id: session-persistence-postgres
+      name: '@deepseek-ai/dsh-session-persistence-postgres'
+      disabled: !!js (process.env.DSH_PG_URL === undefined)
+      config:
+        connectionString: !!js process.env.DSH_PG_URL
+
     - id: session-persistence-jsonl
       name: '@deepseek-ai/dsh-session-persistence-jsonl'
+      disabled: !!js (process.env.DSH_PG_URL !== undefined)
       config:
         root: !!js dshHomePath('sessions')
 
@@ -203,6 +214,12 @@
           danger-full-access:
             sandbox: danger-full-access
             approval: never
+
+    # Trim the assembled tool-schema footprint: deny the heavy orchestration
+    # tools for every agent by default (per-agent restriction; re-allow via a
+    # later patch layer's toolOrder/restriction override).
+    - id: lean-tools
+      name: '@deepseek-ai/dsh-lean-tools'
 
     - id: shell-env
       name: '@deepseek-ai/dsh-shell-env'
