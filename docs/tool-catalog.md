@@ -15,6 +15,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 | Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-skill-crabcc` | `code_search`, `find_references`, `goto_definition` | `ctx.tools (optional)`, `ctx.skills` | `tool/call`, `tool/result`, `skill/list` | - | code_search, goto_definition, and find_references wrap the crabcc CLI: fuzzy symbol lookup, definition location, and reference listing. The tools register only when a tool runtime is present; the skill provider is available whenever the crabcc binary answers --version. |
 | `@deepseek-ai/dsh-tool-ask-user` | `ask_user_question` | `ctx.tools`, `ctx.userQuestions` | `tool/call`, `tool/result after a UI/provider answers the question` | - | ask_user_question pauses the tool call until the active UI provider returns a human answer. |
 | `@deepseek-ai/dsh-tools` | `run_code` | `ctx.tools`, `ctx.codeRuntime (execution time)`, `ctx.systemPrompt` | `tool/call`, `one tool/code-dispatch-start + tool/code-dispatch pair per bridged sub-call`, `tool/result` | - | Owned by the tool registry as a reserved transport outside filterable capability layers under `mode: code` / `mode: both` (see the Code Mode Agent Note). Under `code` it is the registry's only wire contribution; the other visible capabilities are declared in a generated SDK section in the loaded runtime's language, and a program calls them through bindings scheduled under the native concurrency contract (submission-ordered starts and policy; concurrency-safe bodies overlap up to `maxParallelSubCalls`) that re-enter the complete guarded tool pipeline and link each nested execution to this outer result. |
 | `@deepseek-ai/dsh-plan-mode` | `exit_plan_mode` | `ctx.tools`, `ctx.systemPrompt`, `ctx.userQuestions (execution time, opportunistic)` | `tool/call`, `plan/mode inactive on an approved review`, `tool/result` | - | exit_plan_mode stays in the model-facing schema while planning is inactive so transitions add no tool-catalog churn on top of the plan-policy change. Its execute path rejects calls outside plan mode; in plan mode it presents the plan over the user-questions seam (approve / keep planning with feedback), and approval logs plan mode inactive at the step boundary. |
@@ -37,8 +38,102 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-subagent-report` | `report` | `ctx.subagents`, `ctx.systemPrompt`, `a live continuable in-process child Agent` | `tool/call`, `tool/result`, `a user-role message in the direct parent session` | - | Registered per continuable in-process child rather than globally, so this schema is visible only inside such a child and survives its global `toolFilter`. The same contribution installs the child-scoped `tool:report` prompt section, which this catalog does not render. The parent-facing `send_message` tool is installed independently. |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
+| `@deepseek-ai/dsh-tool-eval` | `eval_case` | `ctx.tools`, `ctx.shell` | `tool/call`, `tool/result` | - | eval_case scores a candidate output by running a deployment-configured grader in a subprocess; the grader owns the verdict (exit 0 = pass) and the tool reports it with bounded detail. A deployment with no benchmarks fails loud at load. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
+
+<a id="deepseek-aidsh-skill-crabcc"></a>
+
+## `@deepseek-ai/dsh-skill-crabcc`
+
+### `code_search`
+
+Search for code symbols (functions, types, classes, methods) in the repository using the crabcc symbol index. Fuzzy name matching with optional reference counts. Use this instead of grep when looking for definitions.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Symbol name or fuzzy search pattern"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum number of results to return (default: 20)"
+    },
+    "includeRefs": {
+      "type": "boolean",
+      "description": "Include reference counts for each symbol (slower)"
+    },
+    "root": {
+      "type": "string",
+      "description": "Repository root path (defaults to workspace root)"
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/skill/skill-crabcc/src/index.ts`](../packages/skill/skill-crabcc/src/index.ts)
+
+### `find_references`
+
+Find all references/usages of a symbol across the entire repository. Returns each reference location (file, line, column) and the surrounding snippet.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Symbol name to find references for"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum number of references to return (default: 50)"
+    },
+    "root": {
+      "type": "string",
+      "description": "Repository root path (defaults to workspace root)"
+    }
+  },
+  "required": [
+    "symbol"
+  ]
+}
+```
+
+Source: [`packages/skill/skill-crabcc/src/index.ts`](../packages/skill/skill-crabcc/src/index.ts)
+
+### `goto_definition`
+
+Find the exact definition location of a symbol. Returns the file, line, column, and signature. Use this when you need to jump to where a function, type, or class is defined.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Exact symbol name to locate"
+    },
+    "root": {
+      "type": "string",
+      "description": "Repository root path (defaults to workspace root)"
+    }
+  },
+  "required": [
+    "symbol"
+  ]
+}
+```
+
+Source: [`packages/skill/skill-crabcc/src/index.ts`](../packages/skill/skill-crabcc/src/index.ts)
+
+code_search, goto_definition, and find_references wrap the crabcc CLI: fuzzy symbol lookup, definition location, and reference listing. The tools register only when a tool runtime is present; the skill provider is available whenever the crabcc binary answers --version.
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
 
@@ -1728,6 +1823,38 @@ Record and update a structured task list for the current work. Send the ENTIRE l
 Source: [`packages/todo/tool-todo/src/index.ts`](../packages/todo/tool-todo/src/index.ts)
 
 todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task.
+
+<a id="deepseek-aidsh-tool-eval"></a>
+
+## `@deepseek-ai/dsh-tool-eval`
+
+### `eval_case`
+
+Score a candidate output against a configured benchmark grader. The grader for `benchmark` runs with `output` fed on stdin; the grader owns the pass/fail verdict (exit 0 = pass, non-zero = fail) and this tool reports it with the verdict detail, so a failed output can be revised and re-graded. The grader may execute the candidate as code — grade only output you intend to run. Available benchmarks: fizzbuzz (18 cases).
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "benchmark": {
+      "type": "string",
+      "description": "The benchmark id to grade against (configured: fizzbuzz)."
+    },
+    "output": {
+      "type": "string",
+      "description": "The candidate output to score; fed to the grader on stdin."
+    }
+  },
+  "required": [
+    "benchmark",
+    "output"
+  ]
+}
+```
+
+Source: [`packages/eval/tool-eval/src/index.ts`](../packages/eval/tool-eval/src/index.ts)
+
+eval_case scores a candidate output by running a deployment-configured grader in a subprocess; the grader owns the verdict (exit 0 = pass) and the tool reports it with bounded detail. A deployment with no benchmarks fails loud at load.
 
 <a id="deepseek-aidsh-tool-workflow"></a>
 

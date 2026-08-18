@@ -58,6 +58,9 @@ import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import * as ToolSessionQuery from '@deepseek-ai/dsh-tool-session-query'
 import * as ToolTasks from '@deepseek-ai/dsh-tool-jobs'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
+import * as ToolEval from '@deepseek-ai/dsh-tool-eval'
+import * as ToolEveros from '@deepseek-ai/dsh-tool-everos'
+import * as SkillCrabcc from '@deepseek-ai/dsh-skill-crabcc'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
@@ -182,6 +185,19 @@ export interface ToolPackage {
  * guard proves it is exhaustive against the on-disk glob.
  */
 const TOOL_PACKAGES: ToolPackage[] = [
+  {
+    pkg: '@deepseek-ai/dsh-skill-crabcc',
+    dir: 'skill-crabcc',
+    source: 'packages/skill/skill-crabcc/src/index.ts',
+    requires: ['ctx.tools (optional)', 'ctx.skills'],
+    writes: ['tool/call', 'tool/result', 'skill/list'],
+    async mount(ctx) {
+      await ctx.plugin(SkillRegistry)
+      await ctx.plugin(SkillCrabcc, { crabccBin: 'crabcc', defaultRoot: process.cwd() })
+    },
+    note:
+      'code_search, goto_definition, and find_references wrap the crabcc CLI: fuzzy symbol lookup, definition location, and reference listing. The tools register only when a tool runtime is present; the skill provider is available whenever the crabcc binary answers --version.',
+  },
   {
     pkg: '@deepseek-ai/dsh-tool-ask-user',
     dir: 'tool-ask-user',
@@ -517,6 +533,44 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-eval',
+    dir: 'tool-eval',
+    source: 'packages/eval/tool-eval/src/index.ts',
+    requires: ['ctx.tools', 'ctx.shell'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(BashEnvPlugin)
+      await ctx.plugin(LocalBashExecutor)
+      await ctx.plugin(ToolEval, {
+        benchmarks: {
+          fizzbuzz: { grader: 'examples/eval-entheai/grader.py', exec: 'python3', cases: 18 },
+        },
+      })
+    },
+    note:
+      'eval_case scores a candidate output by running a deployment-configured grader in a subprocess; the grader owns the verdict (exit 0 = pass) and the tool reports it with bounded detail. A deployment with no benchmarks fails loud at load.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-everos',
+    dir: 'tool-everos',
+    source: 'packages/memory/tool-everos/src/index.ts',
+    requires: ['ctx.tools', 'a reachable EverOS server at baseURL'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // The tools only need the registry; the mount records a deployment
+      // pointed at a local EverOS server with the documented defaults.
+      await ctx.plugin(ToolEveros, {
+        baseURL: 'http://127.0.0.1:8000',
+        appId: 'default',
+        projectId: 'default',
+        timeoutMs: 15000,
+      })
+    },
+    note:
+      'everos_memory_add stores conversation messages in a local EverOS server buffer; everos_memory_flush forces boundary extraction for a session; everos_memory_search retrieves episodes, profiles, agent cases, and agent skills for exactly one owner (user_id XOR agent_id). All wire payloads follow the EverOS /api/v2 dialect; bounds the schema cannot express (batch size, top_k, radius) are enforced in the executor.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-workflow',
