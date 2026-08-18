@@ -34,7 +34,10 @@ interface PartialBlock {
  * misbehaving adapter cannot grow memory or corrupt a completed block.
  */
 export class BlockAssembler {
-  private partials = new Map<number, PartialBlock>()
+  // Block indices are stream-contiguous integers (adapters open 0, 1, 2, …),
+  // so a dense array is faster and allocation-cheaper than a Map for the
+  // per-delta lookup; a missing or sparse slot is simply `undefined`.
+  private partials: (PartialBlock | undefined)[] = []
   private order: number[] = []
   private _usage: TokenUsage | undefined
   private _finish: FinishReason | undefined
@@ -47,13 +50,13 @@ export class BlockAssembler {
   push(chunk: StreamChunk): void {
     switch (chunk.type) {
       case 'block-start': {
-        if (!this.partials.has(chunk.index)) {
+        if (this.partials[chunk.index] === undefined) {
           this.order.push(chunk.index)
-          this.partials.set(chunk.index, {
+          this.partials[chunk.index] = {
             blockType: chunk.blockType,
             text: '',
             toolCallArguments: '',
-          })
+          }
         }
         return
       }
@@ -94,10 +97,10 @@ export class BlockAssembler {
   }
 
   private ensure(index: number, blockType: string): PartialBlock {
-    let partial = this.partials.get(index)
+    let partial = this.partials[index]
     if (!partial) {
       partial = { blockType, text: '', toolCallArguments: '' }
-      this.partials.set(index, partial)
+      this.partials[index] = partial
       this.order.push(index)
     }
     return partial
@@ -120,7 +123,7 @@ export class BlockAssembler {
 
   /** Invariant accessor: every index in `order` has a partial. */
   private mustGet(index: number): PartialBlock {
-    const partial = this.partials.get(index)
+    const partial = this.partials[index]
     if (!partial) throw new Error(`BlockAssembler invariant violated: no partial for index ${index}`)
     return partial
   }
