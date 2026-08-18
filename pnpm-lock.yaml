@@ -479,6 +479,9 @@ importers:
       '@deepseek-ai/dsh-cordis-host-runner':
         specifier: workspace:*
         version: link:../packages/extensions/cordis-host-runner
+      '@deepseek-ai/dsh-crabcc-cache-postgres':
+        specifier: workspace:*
+        version: link:../packages/skill/crabcc-cache-postgres
       '@deepseek-ai/dsh-credentials-local':
         specifier: workspace:*
         version: link:../packages/credentials/credentials-local
@@ -575,6 +578,9 @@ importers:
       '@deepseek-ai/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../packages/session/session-persistence-jsonl
+      '@deepseek-ai/dsh-session-persistence-postgres':
+        specifier: workspace:*
+        version: link:../packages/session/session-persistence-postgres
       '@deepseek-ai/dsh-session-projection':
         specifier: workspace:*
         version: link:../packages/session/session-projection
@@ -608,6 +614,9 @@ importers:
       '@deepseek-ai/dsh-skill':
         specifier: workspace:*
         version: link:../packages/skill/skill
+      '@deepseek-ai/dsh-skill-crabcc':
+        specifier: workspace:*
+        version: link:../packages/skill/skill-crabcc
       '@deepseek-ai/dsh-skill-filesystem':
         specifier: workspace:*
         version: link:../packages/skill/skill-filesystem
