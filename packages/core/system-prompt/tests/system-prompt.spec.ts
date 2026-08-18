@@ -9,7 +9,7 @@ import SystemPrompt, { AssembleContext, PromptAssembly, renderContextSnapshot, r
  * their own sections; the built-ins' behavior is pinned by its own describe.
  */
 const BUILT_IN = ['harness:identity', 'deployment:persona']
-const IDENTITY = 'You are an AI agent powered by DeepSeek Harness.'
+const IDENTITY = 'You are an AI agent powered by DeepSeek Harness, an extensible plugin-based agent runtime.'
 function contributed(assembly: PromptAssembly): PromptAssembly['sections'] {
   return assembly.sections.filter(section => !BUILT_IN.includes(section.name))
 }
@@ -35,6 +35,33 @@ describe('SystemPrompt', () => {
       const ctx = new Context()
       await ctx.plugin(SystemPrompt)
       expect(renderPrompt(await ctx.systemPrompt.assemble())).toBe(IDENTITY)
+    })
+
+    it('appends the configured deployment tail after tool guidance', async () => {
+      const ctx = new Context()
+      await ctx.plugin(SystemPrompt, {
+        persona: 'You are DeepSeek Harness.',
+        appendSystemPrompt: 'Reply in Esperanto unless asked otherwise.',
+      })
+      ctx.systemPrompt.section({ name: 'rules', order: 150, text: 'Follow the rules.' })
+
+      const assembly = await ctx.systemPrompt.assemble()
+      expect(assembly.sections.map(section => section.name)).toEqual([
+        'harness:identity',
+        'deployment:persona',
+        'rules',
+        'deployment:append',
+      ])
+      expect(renderPrompt(assembly)).toBe(
+        `${IDENTITY}\n\nYou are DeepSeek Harness.\n\nFollow the rules.\n\nReply in Esperanto unless asked otherwise.`,
+      )
+    })
+
+    it('omits the append tail when unset or empty', async () => {
+      const ctx = new Context()
+      await ctx.plugin(SystemPrompt, { appendSystemPrompt: '' })
+      const assembly = await ctx.systemPrompt.assemble()
+      expect(assembly.sections.some(section => section.name === 'deployment:append')).toBe(false)
     })
 
     it('can omit the harness identity for a deployment that owns the complete persona', async () => {

@@ -130,6 +130,12 @@ export const PERSONA_SECTION = 'deployment:persona'
 /** Prompt order of the persona slot; the first section a model reads. */
 export const PERSONA_ORDER = 0
 
+/** The deployment-authored append tail's section name. */
+export const APPEND_SECTION = 'deployment:append'
+
+/** Prompt order of the append tail; the last section a model reads. */
+export const APPEND_ORDER = 1000
+
 /** Valid variable names: how they are written between the braces. */
 const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
 
@@ -193,6 +199,12 @@ export interface Config {
    * `deployment:persona` shadows it; `{{variable}}` references are strict.
    */
   persona?: string
+  /**
+   * Deployment-authored text appended as the last system-prompt section, after
+   * every tool-guidance section. `{{variable}}` references are strict. Omitted
+   * or empty contributes nothing.
+   */
+  appendSystemPrompt?: string
   /**
    * Model-facing tool names in order, with {@link TOOL_ORDER_REST} exactly once.
    * Invalid fields fail at load and unknown names fail at assembly; known names
@@ -340,6 +352,7 @@ export class SystemPrompt extends Service {
     includeHarnessIdentity: z.boolean().default(true),
     includeRuntimeContext: z.boolean().default(true),
     persona: z.string().default(''),
+    appendSystemPrompt: z.string().default(''),
     // Preserve omission because an explicit empty order lacks the rest marker.
     toolOrder: z.array(z.string()).default(undefined as unknown as string[]),
   })
@@ -358,7 +371,7 @@ export class SystemPrompt extends Service {
       this.section({
         name: 'harness:identity',
         order: -100,
-        text: 'You are an AI agent powered by DeepSeek Harness.',
+        text: 'You are an AI agent powered by DeepSeek Harness, an extensible plugin-based agent runtime.',
       })
     }
     this.section({
@@ -367,6 +380,10 @@ export class SystemPrompt extends Service {
       // The fallback narrows the optional input type; the schema already defaults it.
       text: config.persona ?? '',
     })
+    const append = config.appendSystemPrompt ?? ''
+    if (append.length > 0) {
+      this.section({ name: APPEND_SECTION, order: APPEND_ORDER, text: append })
+    }
     if (!(config.includeRuntimeContext ?? true)) this.suppressRuntimeContext()
   }
 
