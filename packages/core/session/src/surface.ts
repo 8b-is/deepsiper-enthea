@@ -269,8 +269,16 @@ function replacementRange(
  * Deep structural equality over the session-event JSON value domain
  * (null/boolean/number/string, arrays, plain objects). Replaces
  * `node:util`'s isDeepStrictEqual to keep this module browser-safe.
+ *
+ * Unlike `JSON.stringify(a) === JSON.stringify(b)`, it compares structurally
+ * with an early exit on the first divergence, so it never allocates two full
+ * serializations and cannot disagree with itself when key insertion order
+ * differs between independently constructed copies.
+ * @param a - one JSON value.
+ * @param b - the other JSON value.
+ * @returns true when both sides are structurally equal JSON values.
  */
-function isDeepEqualJson(a: unknown, b: unknown): boolean {
+export function isDeepEqualJson(a: unknown, b: unknown): boolean {
   if (a === b) return true
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false

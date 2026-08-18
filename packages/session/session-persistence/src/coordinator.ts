@@ -9,6 +9,7 @@ import { Context } from '@deepseek-ai/cordis'
 import {
   adoptSessionEvent,
   interruptedTurnClosers,
+  isDeepEqualJson,
   KNOWN_SESSION_EVENT_TYPES,
   SESSION_FORMAT_VERSION,
   SessionPreparation,
@@ -266,7 +267,7 @@ function seedCoversPrefix(seed: readonly SessionEvent[], prefix: readonly Sessio
   return prefix.length <= seed.length
     && prefix.every((event, index) => {
       const seedEvent = seed[index]
-      return seedEvent !== undefined && JSON.stringify(seedEvent) === JSON.stringify(event)
+      return seedEvent !== undefined && isDeepEqualJson(seedEvent, event)
     })
 }
 
