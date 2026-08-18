@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-nu",
   "description": "Model-facing nushell Consumer of the ctx.shell capability seam (foreground, background, sandbox escalation)",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publishConfig": {
     "access": "public"
   },

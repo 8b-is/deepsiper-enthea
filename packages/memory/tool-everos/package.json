@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-everos",
   "description": "Model-facing everos_* memory tools over the local EverOS REST API",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publishConfig": {
     "access": "public"
   },
