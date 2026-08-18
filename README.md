@@ -100,6 +100,20 @@ pnpm dsh web
 
 ---
 
+## 🌐 The Sovereign Constellation
+
+- **Axiom Quant (Monograph & Proofs):** [`https://axiomquant.org`](https://axiomquant.org)
+- **Classroom SOTA Training (Council of Elders):** [`https://github.com/8b-is/classroom-sota-training`](https://github.com/8b-is/classroom-sota-training)
+- **Honest-IRC / EtherHive (PQC Messaging):** [`https://github.com/peterlodri-sec/etherhive`](https://github.com/peterlodri-sec/etherhive) · [`https://etherhive.vaked.dev`](https://etherhive.vaked.dev)
+- **Lovetta Lane Constellation Portal:** [`https://vaked.dev`](https://vaked.dev)
+- **Personal Hub:** [`https://peterl.dev`](https://peterl.dev)
+- **Bluesky:** [`@0xp3t3rl.bsky.social`](https://bsky.app/profile/0xp3t3rl.bsky.social)
+
+---
+
 ## License
 
 [MIT](LICENSE) © 8b-is & DeepSeek AI contributors. Third-party dependency notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Genesis Seal: `7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf` · `WE. {-1, 0, +1}. <3`
+

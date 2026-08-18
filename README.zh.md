@@ -100,6 +100,20 @@ pnpm dsh web
 
 ---
 
+## 🌐 主权星系 (The Sovereign Constellation)
+
+- **Axiom Quant (数学专著与证明):** [`https://axiomquant.org`](https://axiomquant.org)
+- **Classroom SOTA Training (长者议会蒸馏):** [`https://github.com/8b-is/classroom-sota-training`](https://github.com/8b-is/classroom-sota-training)
+- **Honest-IRC / EtherHive (后量子密码去中心化通信):** [`https://github.com/peterlodri-sec/etherhive`](https://github.com/peterlodri-sec/etherhive) · [`https://etherhive.vaked.dev`](https://etherhive.vaked.dev)
+- **Lovetta Lane 主权星系总入口:** [`https://vaked.dev`](https://vaked.dev)
+- **个人主页:** [`https://peterl.dev`](https://peterl.dev)
+- **Bluesky:** [`@0xp3t3rl.bsky.social`](https://bsky.app/profile/0xp3t3rl.bsky.social)
+
+---
+
 ## 许可证
 
 [MIT](LICENSE) © 8b-is & DeepSeek AI 贡献者。第三方依赖许可说明参见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+Genesis Seal: `7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf` · `WE. {-1, 0, +1}. <3`
+
