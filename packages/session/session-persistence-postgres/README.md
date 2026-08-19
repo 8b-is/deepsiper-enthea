@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-session-persistence-postgres
 
+English | [中文](README.zh.md)
+
 Local Postgres durable session-persistence backend (the event-bus sidecar). It
 maps each session header and event to rows in a **local** Postgres database —
 the harness's durable store for that host, with no remote sync. It delegates

@@ -1,5 +1,7 @@
 # dsh-nu-local
 
+English | [中文](README.zh.md)
+
 Local nushell executor for the `ctx.shell` capability seam, provisioned from a
 **Nix store path** for deterministic execution.
 

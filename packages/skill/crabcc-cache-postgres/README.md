@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-crabcc-cache-postgres
 
+English | [中文](README.zh.md)
+
 Local Postgres durable cache for [crabcc](https://github.com/8b-is/crabcc)
 symbol/reference lookups. Mounting this plugin registers `ctx.crabccCache`;
 the `skill-crabcc` tools consult it before spawning the CLI and store results

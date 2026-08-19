@@ -7,6 +7,8 @@
  */
 
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { basename, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { ToolSchema } from '@deepseek-ai/dsh-llm'
@@ -20,7 +22,9 @@ import GoalService from '@deepseek-ai/dsh-goal'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type Config as ToolsConfig } from '@deepseek-ai/dsh-tools'
 import LocalBashExecutor from '@deepseek-ai/dsh-bash-local'
+import * as NuEnvPlugin from '@deepseek-ai/dsh-shell-env'
 import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
+import { LocalNuExecutor } from '@deepseek-ai/dsh-nu-local'
 import { PwshLocalExecutor } from '@deepseek-ai/dsh-pwsh-local'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
@@ -41,6 +45,7 @@ import * as SkillFileSystem from '@deepseek-ai/dsh-skill-filesystem'
 import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
 import * as ToolAskUser from '@deepseek-ai/dsh-tool-ask-user'
 import * as ToolBash from '@deepseek-ai/dsh-tool-bash'
+import * as ToolNu from '@deepseek-ai/dsh-tool-nu'
 import * as ToolPwsh from '@deepseek-ai/dsh-tool-pwsh'
 import * as ToolBashPersistent from '@deepseek-ai/dsh-tool-bash-persistent'
 import CordisHostRunner from '@deepseek-ai/dsh-cordis-host-runner'
@@ -193,7 +198,12 @@ const TOOL_PACKAGES: ToolPackage[] = [
     writes: ['tool/call', 'tool/result', 'skill/list'],
     async mount(ctx) {
       await ctx.plugin(SkillRegistry)
-      await ctx.plugin(SkillCrabcc, { crabccBin: 'crabcc', defaultRoot: process.cwd() })
+      // A deterministic stub answers `--version` so the harvested catalog is
+      // host-independent: real crabcc installs vary, but the registered tool
+      // surface must not. Lookup calls never run during schema harvest.
+      const stub = join(tmpdir(), `crabcc-stub-${process.pid}`)
+      writeFileSync(stub, '#!/bin/bash\necho "crabcc 0.0.0"\n', { mode: 0o755 })
+      await ctx.plugin(SkillCrabcc, { crabccBin: stub, defaultRoot: process.cwd() })
     },
     note:
       'code_search, goto_definition, and find_references wrap the crabcc CLI: fuzzy symbol lookup, definition location, and reference listing. The tools register only when a tool runtime is present; the skill provider is available whenever the crabcc binary answers --version.',
@@ -251,6 +261,23 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The bash tool is the model-facing consumer of the bash executor seam. A `run_in_background` run registers with the generic `ctx.jobs` runtime and is collected/stopped through the `job_*` tools from `@deepseek-ai/dsh-tool-jobs`; the `enableRunInBackground` config (default true) removes the parameter entirely when disabled.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-nu',
+    dir: 'tool-nu',
+    source: 'packages/shell/tool-nu/src/index.ts',
+    requires: ['ctx.tools', 'ctx.shell', 'ctx.systemPrompt', 'ctx.shellEnv', 'ctx.jobs at call time for run_in_background'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // The nu tool consumes the nushell executor seam; the schema harvest
+      // mounts the nu-local implementation so the inject resolves without
+      // executing anything (registration never spawns a process; the binary is
+      // resolved lazily on first run).
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(NuEnvPlugin)
+      await ctx.plugin(LocalNuExecutor, { nuBin: 'nu' })
+      await ctx.plugin(ToolNu)
+    },
   },
   {
     pkg: '@deepseek-ai/dsh-tool-pwsh',

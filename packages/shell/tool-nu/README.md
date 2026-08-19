@@ -1,5 +1,7 @@
 # dsh-tool-nu
 
+English | [中文](README.zh.md)
+
 Model-facing nushell Consumer of the `ctx.shell` capability seam. Foreground
 and `run_in_background` execution, the managed `DSH_*` environment through the
 shared `shell-env` registry, per-call sandbox policy resolution with the

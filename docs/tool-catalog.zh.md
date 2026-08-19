@@ -15,34 +15,127 @@
 
 下表将模型可见的工具名称与其背后的插件包和服务 seam 对应起来。各包章节随后给出确切的 JSON Schema。
 
-| 工具包 | 模型可见名称 | 依赖 | 写入／影响 | 随产品发布的别名 | 部署说明 |
+| Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
-| `@deepseek-ai/dsh-tool-ask-user` | `ask_user_question` | `ctx.tools`、`ctx.userQuestions` | `tool/call`、`tool/result after a UI/provider answers the question` | - | ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类答案。 |
-| `@deepseek-ai/dsh-tools` | `run_code` | `ctx.tools`、`ctx.codeRuntime (execution time)`、`ctx.systemPrompt` | `tool/call`、`one tool/code-dispatch-start + tool/code-dispatch pair per bridged sub-call`、`tool/result` | - | 在 `mode: code`／`mode: both` 下，它由工具注册表所有，作为可过滤能力层之外的保留传输机制（参见 Code Mode Agent Note）。在 `code` 下，它是注册表对协议格式（wire format）的唯一贡献；其他可见能力在使用已加载运行时语言生成的 SDK 章节中声明。程序通过 binding 调用这些能力，调用按照原生并发约定调度：启动顺序和策略遵循提交顺序，并发安全的函数体最多重叠执行 `maxParallelSubCalls` 个。调用会重新进入完整且受守卫保护的工具流水线，并将每个嵌套执行关联到此外层结果。 |
-| `@deepseek-ai/dsh-plan-mode` | `exit_plan_mode` | `ctx.tools`、`ctx.systemPrompt`、`ctx.userQuestions (execution time, opportunistic)` | `tool/call`、`plan/mode inactive on an approved review`、`tool/result` | - | 规划未激活时，exit_plan_mode 仍保留在面向模型的 schema 中，这样状态转换不会在规划策略变更之外额外造成工具目录变动。其执行路径会拒绝规划模式之外的调用；在规划模式下，它通过用户交互 seam 提交计划（批准／根据反馈继续规划），批准后会在步骤边界记录规划模式已停用。 |
-| `@deepseek-ai/dsh-tool-bash` | `bash` | `ctx.tools`、`ctx.shell`、`ctx.systemPrompt`、`ctx.shellEnv`、`ctx.jobs at call time for run_in_background` | `tool/call`、`tool/result` | - | bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_background` 的运行会注册到通用 `ctx.jobs` 运行时，并通过 `job_*` 工具（来自 `@deepseek-ai/dsh-tool-jobs`）收集／停止；禁用 `enableRunInBackground` 配置（默认为 true）后，该参数会被完全移除。 |
-| `@deepseek-ai/dsh-tool-pwsh` | `pwsh` | `ctx.tools`、`ctx.shell`、`ctx.systemPrompt`、`ctx.shellEnv`、`ctx.jobs at call time for run_in_background` | `tool/call`、`tool/result` | - | pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费方（由 `@deepseek-ai/dsh-pwsh-local` 等 PowerShell 执行器为 `ctx.shell` 提供后端）；除沙箱接口外，它逐项对应 bash 工具调用。使用 `run_in_background` 的运行会注册到通用 `ctx.jobs` 运行时，并通过 `job_*` 工具收集／停止；托管的 `DSH_*` 环境来自 `@deepseek-ai/dsh-shell-env`。每次调用都在新进程中运行，不使用持久 PTY 会话。路径采用原生 `C:\...` 形式，变量采用 `$env:NAME`。 |
-| `@deepseek-ai/dsh-tool-cordis` | `cordis_define`、`cordis_inspect_list`、`cordis_inspect_query`、`cordis_inspect_self`、`cordis_run`、`cordis_stop`、`cordis_undefine` | `ctx.tools`、`ctx.dynamicCordisRunner` | `tool/call`、`tool/result`、`process-local dynamic package lifecycle` | - | 不在任何随产品发布的树中，需要显式选择启用；动态 Package 代码可以访问真实运行时，见 .agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md。该工具集注入 `@deepseek-ai/dsh-cordis-host-runner` 提供的 `ctx.dynamicCordisRunner`，后者拥有定义注册表和 vm 沙箱；组合缺少它时这些工具不会激活。运行中的 Package 在停止、undefine 或 DSH 重启前可以注册**额外的**模型可见工具；发生这类工具集变化时，系统会记录完整且有变动的请求头。 |
-| `@deepseek-ai/dsh-tool-bash-persistent` | `bash` | `ctx.tools`、`ctx.terminals`、`an owning Agent at execution time` | `tool/call`、`PTY shell state`、`tool/result` | - | 一个按所有者隔离的持久 bash 工具；部署组合提供 PTY 后端，并可覆盖面向模型的环境描述。 |
-| `@deepseek-ai/dsh-tool-str-replace-editor` | `str_replace_editor` | `ctx.tools`、`ctx.fs` | `tool/call`、`fs/observed after view presence/absence, edit absence, or successful mutation`、`tool/result` | - | 基于文件系统 seam 的独立查看／创建／唯一字面量替换／按行插入工具；可与任何 shell 或终端接口组合。 |
-| `@deepseek-ai/dsh-tool-fs` | `edit`、`read`、`read_image`、`write` | `ctx.tools`、`ctx.fs`、`ctx.systemPrompt`、`ctx.attachments (read_image registration)`、`ctx.llm + an image-capable route (read_image execution)` | `tool/call`、`fs/write-intent or fs/edit-intent for mutations`、`fs/observed after read presence/absence or successful file operation`、`durable attachment (read_image)`、`tool/result` | - | 先读后写／编辑策略由 `@deepseek-ai/dsh-fs-observation-policy` 添加；它是一个 `fs/*` 事件门禁插件，不会改变 schema。加载这些工具的部署按预期也应加载该插件。没有 `ctx.attachments` 时 `read_image` 不会注册；其 schema 与路由无关，执行时除非确切路由的模型声明图像输入，否则拒绝。 |
-| `@deepseek-ai/dsh-tool-fs-search` | `glob`、`grep` | `ctx.tools`、`ctx.subprocess`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn 随包提供的 ripgrep 二进制文件（`@vscode/ripgrep`），并作为普通前台调用运行，绝不作为后台任务；无需在宿主机安装 `rg`，也不经过 shell 层。本目录使用 `sampleOverCapGlobResults: true`；部署必须显式选择该行为。结果超过上限时，会通过可选的 ctx.spillStore 后端保存完整的格式化列表；在共置部署中，如果后端公开本地路径，返回的定位信息可供后续读取／搜索。 |
-| `@deepseek-ai/dsh-tool-terminal` | `terminal_close`、`terminal_list`、`terminal_open`、`terminal_read`、`terminal_send`、`terminal_signal` | `ctx.tools`、`ctx.terminals`、`ctx.systemPrompt`、`ctx.jobs at call time for run_in_background` | `tool/call`、`tool/result` | - | 这 6 个终端工具需要选择启用，用于补充一次性 bash／文件系统工具。`terminal_send(run_in_background: true)` 会注册到 `ctx.jobs`；schema 不包含 TUI、具名按键序列、BEL、调整尺寸、自动启动和跨 agent 共享。 |
-| `@deepseek-ai/dsh-tool-goal` | `create_goal`、`get_goal`、`update_goal` | `ctx.tools`、`ctx.agents`、`ctx.goals`、`ctx.systemPrompt`、`a calling Agent in an authorized open turn` | `tool/call`、`goal/change for mutations`、`tool/result` | - | create、edit、pause 和 resume 要求直接来自人类的根权限；complete 和 blocked 也接受确切的当前 Goal Round。blocked 的默认下限是 3 个获准的 Round。 |
-| `@deepseek-ai/dsh-schedule` | `schedule_create`、`schedule_delete`、`schedule_list` | `ctx.tools`、`ctx.sessions`、Session 持久化、未来创建的 live 根 Agent | `tool/call`、`schedule/change create or delete`、`tool/result` | - | 仅在选择启用的 Schedule 插件加载后创建的 live 根 Agent scope 内注册。版本 1 接受 after_seconds、显式绝对 at 和有界固定速率 every_seconds，并披露 session-local 交付；管理读取与变更必须通过共享的 Session 持久化 barrier。 |
-| `@deepseek-ai/dsh-tool-lsp` | `lsp` | `ctx.tools`、`ctx.lsp`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@deepseek-ai/dsh-lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。 |
-| `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`、`ctx.workflowEngine`、`ctx.subagents`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents every fresh round)` | `tool/call`、`tool/result`、`workflow and child session events during execution` | - | 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。 |
-| `@deepseek-ai/dsh-tool-skill` | `skill` | `ctx.tools`、`ctx.agents`、`ctx.skills` | `tool/call`、`tool/result`、`user/message replacement catalogs via agent.inject()` | - | - |
-| `@deepseek-ai/dsh-tool-session-query` | `session_event_read`、`session_event_search`、`session_event_trace`、`session_search`、`session_trace` | `ctx.tools`、`ctx.systemPrompt`、`ctx.sessionQuery`、`a calling Agent for workspace authority` | `tool/call`、`tool/result` | - | 这 5 个只读工具会隐藏提供方游标，并根据不可变的调用 agent 会话为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用超时或 spill 策略。 |
-| `@deepseek-ai/dsh-tool-subagent` | `subagent` | `ctx.tools`、`ctx.subagents`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`child session events through the chosen provider` | `subagent`、`subagent_fork` | 注册的工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述 schema 对应默认值。随产品发布的组合会为每个 subagent 后端加载一次该包，因此模型还会看到绑定到 fork 后端的 `subagent_fork`。每个实例的描述、`run_in_background` 参数与 system prompt 策略取决于它自己的 `backgroundMode` 和 `enableRunInBackground`，因此两个随附 schema 并不相同：`subagent` 为 `continuable`，省略参数时默认后台运行，并由 runtime 自动投递结束结果；`subagent_fork` 保持 `one-shot`，省略参数时默认前台运行。详见 `packages/bundle/base/cordis.patch.yml` 和 `examples/acp-agent/cordis.yml`。 |
-| `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`、`list_agents`、`send_message` | `ctx.tools`、`ctx.subagents`、`ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`、`tool/result`、`child session events through ctx.subagents` | - | 这些是控制可继续后台 subagent 的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由 `list_agents` 通过单独加载的 `/list-agents` 插件提供，其目录行使用 sessionProjections 和实时 Agent 注册表。 |
-| `@deepseek-ai/dsh-tool-subagent-report` | `report` | `ctx.subagents`、`ctx.systemPrompt`、`a live continuable in-process child Agent` | `tool/call`、`tool/result`、`a user-role message in the direct parent session` | - | 按可继续的进程内子级注册，而非全局注册，因此该 schema 仅在这种子级内部可见，并且不受其全局 `toolFilter` 影响。同一份贡献还会安装子级作用域的 `tool:report` 系统提示词 section，本目录不渲染该 section。面向父级的 `send_message` 工具单独安装。 |
-| `@deepseek-ai/dsh-tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
-| `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
-| `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
-| `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
+| `@deepseek-ai/dsh-skill-crabcc` | `code_search`, `find_references`, `goto_definition` | `ctx.tools (可选)`、 `ctx.skills` | `tool/call`、 `tool/result`、 `skill/list` | - | 仅当存在工具运行时这些工具才注册。 |
+| `@deepseek-ai/dsh-tool-ask-user` | `ask_user_question` | `ctx.tools`、 `ctx.userQuestions` | `tool/call`、 `tool/result after a UI/provider answers the question` | - | ask_user_question pauses the tool call until the active UI provider returns a human answer. |
+| `@deepseek-ai/dsh-tools` | `run_code` | `ctx.tools`、 `ctx.codeRuntime（执行时）`、 `ctx.systemPrompt` | `tool/call`、 `one tool/code-dispatch-start + tool/code-dispatch pair per bridged sub-call`、 `tool/result` | - | Owned by the tool registry as a reserved transport outside filterable capability layers under `mode: code` / `mode: both` (see the Code Mode Agent Note). Under `code` it is the registry's only wire contribution; the other visible capabilities are declared in a generated SDK section in the loaded runtime's language、 and a program calls them through bindings scheduled under the native concurrency contract (submission-ordered starts and policy; concurrency-safe bodies overlap up to `maxParallelSubCalls`) that re-enter the complete guarded tool pipeline and link each nested execution to this outer result. |
+| `@deepseek-ai/dsh-plan-mode` | `exit_plan_mode` | `ctx.tools`、 `ctx.systemPrompt`、 `ctx.userQuestions (execution time、 opportunistic)` | `tool/call`、 `plan/mode inactive on an approved review`、 `tool/result` | - | exit_plan_mode stays in the model-facing schema while planning is inactive so transitions add no tool-catalog churn on top of the plan-policy change. Its execute path rejects calls outside plan mode; in plan mode it presents the plan over the user-questions seam (approve / keep planning with feedback)、 and approval logs plan mode inactive at the step boundary. |
+| `@deepseek-ai/dsh-tool-bash` | `bash` | `ctx.tools`、 `ctx.shell`、 `ctx.systemPrompt`、 `ctx.shellEnv`、 `调用 run_in_background 时的 ctx.jobs` | `tool/call`、 `tool/result` | - | The bash tool is the model-facing consumer of the bash executor seam. A `run_in_background` run registers with the generic `ctx.jobs` runtime and is collected/stopped through the `job_*` tools from `@deepseek-ai/dsh-tool-jobs`; the `enableRunInBackground` config (default true) removes the parameter entirely when disabled. |
+| `@deepseek-ai/dsh-tool-nu` | `nu` | `ctx.tools`、 `ctx.shell`、 `ctx.systemPrompt`、 `ctx.shellEnv`、 `调用 run_in_background 时的 ctx.jobs` | `tool/call`、 `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-pwsh` | `pwsh` | `ctx.tools`、 `ctx.shell`、 `ctx.systemPrompt`、 `ctx.shellEnv`、 `调用 run_in_background 时的 ctx.jobs` | `tool/call`、 `tool/result` | - | The pwsh tool is the PowerShell-dialect consumer of the bash executor seam for Windows compositions (a PowerShell executor such as `@deepseek-ai/dsh-pwsh-local` backs `ctx.shell`); it mirrors the bash tool call-for-call minus sandbox controls — `run_in_background` runs register with the generic `ctx.jobs` runtime and are collected/stopped through the `job_*` tools、 and the managed `DSH_*` environment comes from `@deepseek-ai/dsh-shell-env`. Each call runs in a fresh process (no persistent PTY session)、 with native `C:\...` paths and `$env:NAME` variables. |
+| `@deepseek-ai/dsh-tool-cordis` | `cordis_define`, `cordis_inspect_list`, `cordis_inspect_query`, `cordis_inspect_self`, `cordis_run`, `cordis_stop`, `cordis_undefine` | `ctx.tools`、 `ctx.dynamicCordisRunner` | `tool/call`、 `tool/result`、 `process-local dynamic package lifecycle` | - | 不随产品分发（显式可选，见 Agent Note）。 |
+| `@deepseek-ai/dsh-tool-bash-persistent` | `bash` | `ctx.tools`、 `ctx.terminals`、 `an owning Agent at execution time` | `tool/call`、 `PTY shell state`、 `tool/result` | - | One owner-isolated persistent bash tool; deployment composition supplies the PTY backend and may override the model-facing environment description. |
+| `@deepseek-ai/dsh-tool-str-replace-editor` | `str_replace_editor` | `ctx.tools`、 `ctx.fs` | `tool/call`、 `fs/observed after view presence/absence、 edit absence、 or successful mutation`、 `tool/result` | - | Standalone view/create/unique literal replace/line insert tool over the filesystem seam; it composes with any shell or terminal API. |
+| `@deepseek-ai/dsh-tool-fs` | `edit`, `read`, `read_image`, `write` | `ctx.tools`、 `ctx.fs`、 `ctx.systemPrompt`、 `ctx.attachments (read_image registration)`、 `ctx.llm + an image-capable route (read_image execution)` | `tool/call`、 `fs/write-intent or fs/edit-intent for mutations`、 `fs/observed after read presence/absence or successful file operation`、 `durable attachment (read_image)`、 `tool/result` | - | The read-before-write/edit policy is added by `@deepseek-ai/dsh-fs-observation-policy` (an `fs/*` event-gate plugin、 no schema change); a deployment that loads these tools is expected to also load it. `read_image` is not registered without `ctx.attachments`; its schema is route-independent、 and execution refuses unless the exact routed model declares image input. |
+| `@deepseek-ai/dsh-tool-fs-search` | `glob`, `grep` | `ctx.tools`、 `ctx.subprocess`、 `ctx.systemPrompt` | `tool/call`、 `tool/result` | - | glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the 可选 ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments. |
+| `@deepseek-ai/dsh-tool-terminal` | `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_send`, `terminal_signal` | `ctx.tools`、 `ctx.terminals`、 `ctx.systemPrompt`、 `调用 run_in_background 时的 ctx.jobs` | `tool/call`、 `tool/result` | - | The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI、 named key sequences、 BEL、 resize、 auto-start、 and cross-agent sharing are absent from the schema. |
+| `@deepseek-ai/dsh-tool-goal` | `create_goal`, `get_goal`, `update_goal` | `ctx.tools`、 `ctx.agents`、 `ctx.goals`、 `ctx.systemPrompt`、 `a calling Agent in an authorized open turn` | `tool/call`、 `goal/change for mutations`、 `tool/result` | - | create、 edit、 pause、 and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds. |
+| `@deepseek-ai/dsh-schedule` | `schedule_create`, `schedule_delete`, `schedule_list` | `ctx.tools`、 `ctx.sessions`、 `Session persistence`、 `a future live root Agent` | `tool/call`、 `schedule/change create or delete`、 `tool/result` | - | Registered only inside live root Agent scopes created after the opt-in Schedule plugin loads. Version 1 accepts after_seconds、 explicit absolute at、 and bounded fixed-rate every_seconds、 and discloses session-local delivery; management reads and mutations require the shared Session persistence barrier. |
+| `@deepseek-ai/dsh-tool-lsp` | `lsp` | `ctx.tools`、 `ctx.lsp`、 `ctx.systemPrompt` | `tool/call`、 `tool/result` | - | The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp、 so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@deepseek-ai/dsh-lsp-stdio`) at runtime; without one、 a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema. |
+| `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`、 `ctx.workflowEngine`、 `ctx.subagents`、 `ctx.systemPrompt`、 `a calling Agent (exec.agent parents every fresh round)` | `tool/call`、 `tool/result`、 `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an 可选 round cap. |
+| `@deepseek-ai/dsh-tool-skill` | `skill` | `ctx.tools`、 `ctx.agents`、 `ctx.skills` | `tool/call`、 `tool/result`、 `user/message replacement catalogs via agent.inject()` | - | - |
+| `@deepseek-ai/dsh-tool-session-query` | `session_event_read`, `session_event_search`, `session_event_trace`, `session_search`, `session_trace` | `ctx.tools`、 `ctx.systemPrompt`、 `ctx.sessionQuery`、 `a calling Agent for workspace authority` | `tool/call`、 `tool/result` | - | The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies. |
+| `@deepseek-ai/dsh-tool-subagent` | `subagent` | `ctx.tools`、 `ctx.subagents`、 `ctx.systemPrompt` | `tool/call`、 `tool/result`、 `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered tool name is the load-time `toolName` config (default `subagent`); the schema above is that default. The shipped compositions load this package once per subagent backend、 so the model additionally sees `subagent_fork` bound to the fork backend. Each instance's description、 `run_in_background` parameter、 and system-prompt policy follow its own `backgroundMode` and `enableRunInBackground`、 so the two shipped schemas are not identical: `subagent` is `continuable` and defaults omitted calls to background with automatic settlement delivery、 while `subagent_fork` stays `one-shot` and defaults them to foreground — see `packages/bundle/base/cordis.patch.yml` and `examples/acp-agent/cordis.yml`. |
+| `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`、 `ctx.subagents`、 `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`、 `tool/result`、 `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools、 while this package registers `send_message` and `interrupt_agent` once、 plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
+| `@deepseek-ai/dsh-tool-subagent-report` | `report` | `ctx.subagents`、 `ctx.systemPrompt`、 `a live continuable in-process child Agent` | `tool/call`、 `tool/result`、 `a user-role message in the direct parent session` | - | Registered per continuable in-process child rather than globally、 so this schema is visible only inside such a child and survives its global `toolFilter`. The same contribution installs the child-scoped `tool:report` prompt section、 which this catalog does not render. The parent-facing `send_message` tool is installed independently. |
+| `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`、 `ctx.jobs`、 `ctx.systemPrompt` | `tool/call`、 `tool/result`、 `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands、 PTY sends、 and subagents are read、 listed、 and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
+| `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、 `拥有 Agent 会话` | `tool/call`、 `todo/write`、 `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default、 so the catalog states its choice: `true`、 whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
+| `@deepseek-ai/dsh-tool-eval` | `eval_case` | `ctx.tools`、 `ctx.shell` | `tool/call`、 `tool/result` | - | eval_case scores a candidate output by running a deployment-configured grader in a subprocess; the grader owns the verdict (exit 0 = pass) and the tool reports it with bounded detail. A deployment with no benchmarks fails loud at load. |
+| `@deepseek-ai/dsh-tool-everos` | `everos_memory_add`, `everos_memory_flush`, `everos_memory_search` | `ctx.tools`、 `a reachable EverOS server at baseURL` | `tool/call`、 `tool/result` | - | everos_memory_add stores conversation messages in a local EverOS server buffer; everos_memory_flush forces boundary extraction for a session; everos_memory_search retrieves episodes、 profiles、 agent cases、 and agent skills for exactly one owner (user_id XOR agent_id). All wire payloads follow the EverOS /api/v2 dialect; bounds the schema cannot express (batch size、 top_k、 radius) are enforced in the executor. |
+| `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、 `ctx.workflowEngine`、 `ctx.systemPrompt`、 `a calling Agent (exec.agent parents the script children)` | `tool/call`、 `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`、 `ctx.web`、 `ctx.systemPrompt` | `tool/call`、 `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
+
+## `@deepseek-ai/dsh-skill-crabcc`
+
+### `code_search`
+
+使用 crabcc 符号索引在仓库中搜索代码符号（函数、类型、类、方法）。支持模糊名称匹配与可选的引用计数。查找定义时请优先使用本工具而不是 grep。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Symbol name or fuzzy search pattern"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum number of results to return (default: 20)"
+    },
+    "includeRefs": {
+      "type": "boolean",
+      "description": "Include reference counts for each symbol (slower)"
+    },
+    "root": {
+      "type": "string",
+      "description": "Repository root path (defaults to workspace root)"
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/skill/skill-crabcc/src/index.ts`](../packages/skill/skill-crabcc/src/index.ts)
+
+### `find_references`
+
+在仓库中使用 crabcc 符号索引列出对某个符号的全部引用。重命名或迁移符号前，请用它评估影响范围。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Symbol name to find references for"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum number of references to return (default: 50)"
+    },
+    "root": {
+      "type": "string",
+      "description": "Repository root path (defaults to workspace root)"
+    }
+  },
+  "required": [
+    "symbol"
+  ]
+}
+```
+
+Source: [`packages/skill/skill-crabcc/src/index.ts`](../packages/skill/skill-crabcc/src/index.ts)
+
+### `goto_definition`
+
+在仓库中使用 crabcc 符号索引查找符号的定义位置。在代码库中跳转到定义处。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Exact symbol name to locate"
+    },
+    "root": {
+      "type": "string",
+      "description": "Repository root path (defaults to workspace root)"
+    }
+  },
+  "required": [
+    "symbol"
+  ]
+}
+```
+
+Source: [`packages/skill/skill-crabcc/src/index.ts`](../packages/skill/skill-crabcc/src/index.ts)
 
 ## `@deepseek-ai/dsh-tool-ask-user`
 
@@ -193,7 +286,7 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
     },
     "description": {
       "type": "string",
-      "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+      "description": "Short active-voice summary of the command, 5-10 words, shown in the UI. Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"."
     },
     "timeoutMs": {
       "type": "number",
@@ -220,6 +313,46 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
 bash 工具是 bash 执行器 seam 面向模型的消费方。使用 `run_in_background` 的运行会注册到通用 `ctx.jobs` 运行时，并通过 `job_*` 工具（来自 `@deepseek-ai/dsh-tool-jobs`）收集／停止；禁用 `enableRunInBackground` 配置（默认为 true）后，该参数会被完全移除。
 
 <a id="deepseek-aidsh-tool-pwsh"></a>
+
+## `@deepseek-ai/dsh-tool-nu`
+
+### `nu`
+
+执行 nushell 命令（`nu --no-config-file -c`）并返回其 stdout/stderr。每次调用都在全新的 nu 进程中运行：调用之间不保留任何状态（cwd、变量、函数），请传入 `workdir`，不要使用 `cd`。路径为 POSIX；使用 `$env.NAME` 读取环境变量。请使用 nushell 管道（`|`）与内置命令（`ls`、`open`、`get`）。非零退出会报告为 `[exit code: N]`。当前 harness 环境信息通过托管的 `$env:DSH_*` 变量公开，需要时请检查。命令可能在文件沙箱中运行；被阻止的文件操作报告为 `[sandbox: file access denied under <mode> mode]`，这是策略拒绝而非命令缺陷，请勿换一种方式重试。较长的输出截断至尾部；完整输出会保存到文件并报告其路径。被杀死的进程以 `[killed by signal: <signal>]` 结束——将其视为中断，而非命令失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "The nushell command to execute."
+    },
+    "description": {
+      "type": "string",
+      "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"Get-Process\" → \"List running processes\"."
+    },
+    "timeoutMs": {
+      "type": "number",
+      "description": "Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry."
+    },
+    "workdir": {
+      "type": "string",
+      "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+    },
+    "run_in_background": {
+      "type": "boolean",
+      "description": "Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies."
+    }
+  },
+  "required": [
+    "command",
+    "description"
+  ]
+}
+```
+
+Source: [`packages/shell/tool-nu/src/index.ts`](../packages/shell/tool-nu/src/index.ts)
 
 ## `@deepseek-ai/dsh-tool-pwsh`
 
@@ -1735,6 +1868,304 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 
 <a id="deepseek-aidsh-tool-workflow"></a>
 
+## `@deepseek-ai/dsh-tool-eval`
+
+### `eval_case`
+
+根据配置的基准评测器对候选输出进行评分。`benchmark` 的评测器在 stdin 上接收 `output`；评测器拥有通过/失败裁决（退出码 0 = 通过，非零 = 失败），本工具连同裁决详情一并报告，因此失败的输出可以修订后重新评分。评测器可能将候选内容作为代码执行——只评分你打算运行的内容。可用基准：fizzbuzz（18 个用例）。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "benchmark": {
+      "type": "string",
+      "description": "The benchmark id to grade against (configured: fizzbuzz)."
+    },
+    "output": {
+      "type": "string",
+      "description": "The candidate output to score; fed to the grader on stdin."
+    }
+  },
+  "required": [
+    "benchmark",
+    "output"
+  ]
+}
+```
+
+Source: [`packages/eval/tool-eval/src/index.ts`](../packages/eval/tool-eval/src/index.ts)
+
+## `@deepseek-ai/dsh-tool-everos`
+
+### `everos_memory_add`
+
+将对话消息存储到本地 EverOS 记忆服务器。消息在会话缓冲区内累积，直到边界检测提取它们；调用 everos_memory_flush 可强制提取。当当前对话轮次包含值得记住的持久事实、偏好或决策时，将其存储在此处。`defer_extraction: true` 会持久化缓冲区而不提取——适用于尚未结束、暂不希望划分成情节的对话。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "The conversation session the messages belong to."
+    },
+    "messages": {
+      "type": "array",
+      "description": "1..500 messages to store, in chronological order. `timestamp` is Unix epoch in milliseconds; `sender_id` identifies the speaker (e.g. a user id or the agent name).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sender_id": {
+            "type": "string",
+            "description": "Who sent the message; also becomes the memory owner for user-memory searches."
+          },
+          "sender_name": {
+            "type": "string",
+            "description": "Display name of the sender."
+          },
+          "role": {
+            "type": "string",
+            "description": "user | assistant | tool.",
+            "enum": [
+              "user",
+              "assistant",
+              "tool"
+            ]
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "Message time as Unix epoch milliseconds."
+          },
+          "content": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Plain-text message content."
+              },
+              {
+                "type": "array",
+                "description": "Multimodal content pieces.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "description": "Content piece kind.",
+                      "enum": [
+                        "text",
+                        "image",
+                        "audio",
+                        "doc",
+                        "pdf",
+                        "html",
+                        "email"
+                      ]
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "Text payload."
+                    },
+                    "uri": {
+                      "type": "string",
+                      "description": "Reference URI for non-text pieces."
+                    },
+                    "base64": {
+                      "type": "string",
+                      "description": "Inline base64 payload."
+                    },
+                    "ext": {
+                      "type": "string",
+                      "description": "File extension hint."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Piece name."
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                }
+              }
+            ],
+            "description": "Message text, or multimodal content pieces."
+          },
+          "tool_calls": {
+            "type": "array",
+            "description": "Function calls made by an assistant message.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "function": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "arguments": {
+                      "type": "string",
+                      "description": "Arguments as a JSON string."
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "arguments"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "function"
+              ]
+            }
+          },
+          "tool_call_id": {
+            "type": "string",
+            "description": "The tool call this tool-result message answers."
+          }
+        },
+        "required": [
+          "sender_id",
+          "role",
+          "timestamp",
+          "content"
+        ]
+      }
+    },
+    "app_id": {
+      "type": "string",
+      "description": "Overrides the configured default app scope."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Overrides the configured default project scope."
+    },
+    "defer_extraction": {
+      "type": "boolean",
+      "description": "Persist to the buffer without running boundary detection or extraction."
+    }
+  },
+  "required": [
+    "session_id",
+    "messages"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-everos/src/index.ts`](../packages/memory/tool-everos/src/index.ts)
+
+### `everos_memory_flush`
+
+强制提取当前会话缓冲区中累积的消息，将其固化为 EverOS 记忆情节并建立索引。当 `defer_extraction: true` 存储了消息、或边界检测尚未触发，而你需要立即固化时，请调用本工具。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "The conversation session to flush."
+    },
+    "app_id": {
+      "type": "string",
+      "description": "Overrides the configured default app scope."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Overrides the configured default project scope."
+    }
+  },
+  "required": [
+    "session_id"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-everos/src/index.ts`](../packages/memory/tool-everos/src/index.ts)
+
+### `everos_memory_search`
+
+在本地 EverOS 记忆中检索相关情节、用户画像或技能。当会话上下文需要此前会话的持久事实时使用；关键词搜索无需嵌入模型即可工作。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Owner of user memory (episodes, profiles). Exactly one of user_id / agent_id is required."
+    },
+    "agent_id": {
+      "type": "string",
+      "description": "Owner of agent memory (cases, skills). Exactly one of user_id / agent_id is required."
+    },
+    "query": {
+      "type": "string",
+      "description": "What to recall — a fact, decision, or capability; the server retrieves the closest stored memory."
+    },
+    "method": {
+      "type": "string",
+      "description": "Retrieval method (default hybrid).",
+      "enum": [
+        "keyword",
+        "vector",
+        "hybrid",
+        "agentic"
+      ]
+    },
+    "top_k": {
+      "type": "integer",
+      "description": "-1 for all, or 1..100; default -1."
+    },
+    "radius": {
+      "type": "number",
+      "description": "Cosine-similarity floor in 0..1 applied at recall time."
+    },
+    "min_score": {
+      "type": "number",
+      "description": "Post-fusion relevance floor in 0..1 for episode hybrid retrieval."
+    },
+    "include_profile": {
+      "type": "boolean",
+      "description": "Also return the owner profile (user memory)."
+    },
+    "enable_llm_rerank": {
+      "type": "boolean",
+      "description": "Opt-in LLM rerank of agent cases and skills (needs a configured EverOS LLM)."
+    },
+    "filters": {
+      "type": "object",
+      "description": "EverOS filters DSL: recursive {\"AND\": [...]} / {\"OR\": [...]} nodes mixed with scalar fields like {\"session_id\": \"sess-1\"}.",
+      "additionalProperties": true
+    },
+    "app_id": {
+      "type": "string",
+      "description": "Overrides the configured default app scope."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Overrides the configured default project scope."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-everos/src/index.ts`](../packages/memory/tool-everos/src/index.ts)
+
 ## `@deepseek-ai/dsh-tool-workflow`
 
 ### `workflow`
@@ -1743,12 +2174,8 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 
 工作流的身份通过 `meta` 参数以 JSON 形式传入：必填的 `name`（简短 kebab-case）和 `description` 字符串，以及可选的 `whenToUse` 字符串和 `phases` 数组（`{title, detail?, provider?, model?}`）。`script` 参数只能是纯 JavaScript **函数体**，不能是 TypeScript，也不能包含 `export const meta` 语句；meta 是参数而非代码。脚本支持顶层 await；请以 `return <value>` 结尾，该值必须可以 JSON 序列化，并作为此工具的结果。
 
-脚本函数体提供以下钩子：
+脚本钩子：`agent(prompt, opts?)` 运行一个 subagent（`opts.schema` 返回通过校验的对象；`label`/`phase`/`provider`/`model` 选项）；`pipeline(items, ...stages)` 让每个条目分别经过各阶段（阶段抛错时该条目降为 `null`）；`parallel(thunks)` 并发运行 thunks 并等待全部完成（抛错的 thunk 解析为 `null`）；`phase(title)`/`log(message)` 说明进度；`args` 是工具调用的原样输入。误用钩子会抛出错误并终止脚本。
 
-- `agent(prompt, opts?): Promise<any>`：运行一个 subagent 直至完成。不提供 `opts.schema` 时，解析为子级最终文本；提供 `opts.schema` 时，它必须是以对象为根、且**只能**使用 type/properties/required/additionalProperties/items/enum/const/oneOf 的 JSON Schema，不支持 pattern/format/数值边界，此时解析为通过校验的对象。子级失败时解析为 `null`，可使用 `.filter(Boolean)` 过滤。其他选项包括 `label`（显示名称）、`phase`（进度组），以及相互独立的 `provider`／`model` LLM（大语言模型）目标覆盖项，两者可单独提供。其他任何选项（`effort`／`isolation`／`agentType`）都会明确报错。
-- `pipeline(items, ...stages): Promise<any[]>`：让每个条目分别经过各阶段，阶段之间**没有**屏障；多阶段工作优先使用它。每个阶段接收 `(prev, item, index)`。普通的阶段异常会将该**条目**变为 `null`，并跳过它的剩余阶段。
-- `parallel(thunks): Promise<any[]>`：并发运行零参数函数并等待**全部**完成。它会形成屏障，仅当某个阶段确实需要汇总全部先前结果时使用。抛出异常的 thunk 解析为 `null`。
-- `phase(title)`：开始一个进度阶段；`log(message)`：说明进度；`args`：工具调用的 `args` 输入，原样提供。
 
 如果误用钩子（参数错误、未知选项、不受支持的 schema、触发上限），抛出的错误**总会**终止脚本，绝不会退化为单个条目的 `null`。
 

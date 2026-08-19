@@ -503,6 +503,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'consensusEval',
+    summary: 'The consensus eval service (`ctx.consensusEval`).',
+    description: 'The consensus eval service (`ctx.consensusEval`).',
+    methods: [
+      {
+        signature: 'async run(task: string, options: { system?: string; temperature?: number } = {}): Promise<CouncilReport>',
+        description: 'Run one task through every Council route and aggregate the answers.',
+        parameters: [{ name: 'task', description: 'the prompt delivered to every route.' }, { name: 'options', description: 'optional system prompt and per-call temperature.' }],
+        returns: 'one report per route plus the geometric-mean consensus.',
+      },
+    ],
+  },
+  {
     key: 'credentials',
     summary: 'Abstract credential service.',
     description: 'Abstract credential service. Providers implement the four operations over their source layers; one seam-wide rule binds them all: an empty stored value is absent everywhere — `resolve` skips it, `describe` reports it unconfigured — so a blank never masquerades as a configured secret.',
@@ -2836,6 +2849,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ConfinedSandboxMode = Exclude<SandboxMode, \'danger-full-access\'>;',
   },
   {
+    name: 'ConsensusResult',
+    declaration: 'export interface ConsensusResult {\n    answer: string;\n    confidence: number;\n    supporters: string[];\n    unanimous: boolean;\n}',
+  },
+  {
     name: 'ContentBlockMap',
     declaration: 'export interface ContentBlockMap {\n    \'text\': TextBlock;\n    \'reasoning\': ReasoningBlock;\n    \'image\': ImageBlock;\n    \'tool-call\': ToolCallBlock;\n    \'tool-result\': ToolResultBlock;\n}',
   },
@@ -2902,6 +2919,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CordisInspectRequestId',
     declaration: 'export type CordisInspectRequestId = Branded<\'CordisInspectRequestId\'>;',
+  },
+  {
+    name: 'CouncilReport',
+    declaration: 'export interface CouncilReport {\n    task: string;\n    routes: Array<RouteOutput & {\n        error?: string;\n    }>;\n    consensus: ConsensusResult;\n}',
   },
   {
     name: 'CreateAgentOptions',
@@ -3541,7 +3562,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PromptAssembly',
-    declaration: 'export interface PromptAssembly {\n    sections: AssembledSection[];\n    contexts: AssembledContext[];\n    tools: ToolSchema[];\n    variables: Record<string, string | undefined>;\n}',
+    declaration: 'export interface PromptAssembly {\n    sections: AssembledSection[];\n    contexts: AssembledContext[];\n    tools: ToolSchema[];\n    variables: Record<string, string | undefined>;\n    contextTokenBudget?: number;\n}',
   },
   {
     name: 'PromptContext',
@@ -3634,6 +3655,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResumeAgentOptions',
     declaration: 'export interface ResumeAgentOptions {\n    readonly resumeSessionId: SessionId;\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
+  },
+  {
+    name: 'RouteOutput',
+    declaration: 'export interface RouteOutput {\n    id: string;\n    provider: string;\n    model: string;\n    output: string;\n}',
   },
   {
     name: 'RpcError',

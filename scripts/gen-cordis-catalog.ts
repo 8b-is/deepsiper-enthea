@@ -66,6 +66,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   cordisInspect: 'extensions.md',
   credentials: 'credentials.md',
   directoryPicker: 'workspace.md',
+  consensusEval: 'eval.md',
   dynamicCordisRunner: 'extensions.md',
   e2b: 'subprocess.md',
   fs: 'filesystem.md',
@@ -506,6 +507,7 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
+  CouncilReport: 'service-local consensus evaluation result is owned by packages/eval/eval-consensus/src/index.ts',
   BeginCommandRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   InsertReferenceRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   ConsumeTokenRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',

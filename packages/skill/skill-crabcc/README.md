@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-skill-crabcc
 
+English | [中文](README.zh.md)
+
 Integrates the [crabcc](https://github.com/8b-is/crabcc) code index CLI into the
 harness as three agent tools plus a bundled skill:
 

@@ -1,5 +1,7 @@
 # dsh-commands-superpowers
 
+English | [中文](README.zh.md)
+
 Core superpowers slash commands, adapted from the workspace's superpowers
 skill set into the harness's `ctx.commands` seam. Three commands:
 

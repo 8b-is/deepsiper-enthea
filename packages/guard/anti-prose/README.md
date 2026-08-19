@@ -1,5 +1,7 @@
 # dsh-anti-prose
 
+English | [中文](README.zh.md)
+
 Core anti-prose (caveman-style) response policy. A pure policy plugin: it
 installs an ordered system-prompt section instructing the model to answer
 terse **in English**, like a sharp engineer who drops filler, while keeping

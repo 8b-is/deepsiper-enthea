@@ -69,8 +69,6 @@ pnpm install
 pnpm build
 ```
 
-```
-
 ---
 
 ## Empirical AST & Logic Benchmark Suite

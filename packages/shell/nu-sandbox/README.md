@@ -1,5 +1,7 @@
 # dsh-nu-sandbox
 
+English | [中文](README.zh.md)
+
 Sandbox-consuming implementation of the nushell executor seam. Extends
 `LocalNuExecutor`, wrapping the exact resolved nushell argv
 (`<nuPath> --no-config-file -c <command>`) through `ctx.sandbox`, so the

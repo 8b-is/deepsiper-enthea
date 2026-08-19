@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-subagent-agentfield
 
+English | [中文](README.zh.md)
+
 AgentField `swe_af` one-shot subagent provider. Every accepted run dispatches the
 task to the AgentField control plane's `swe_af.solve_issue` reasoner via its
 async-execute REST API, polls until settlement, and returns the terminal result

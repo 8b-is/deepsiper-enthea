@@ -39,7 +39,7 @@ Deepsiper Enthea 核心遵循 **一切皆插件** 的 [Cordis](https://github.co
                   └────┬──────────────┬───────────────┬─┘
                        │              │               │
         ┌──────────────▼─────┐ ┌──────▼──────┐ ┌──────▼──────────────┐
-        │     主权后端       │ │   评测插件   │ │    沙箱工具隔离    │
+        │  Sovereign Backends│ │ Eval Plugins│ │ Sandboxed Tool Seams│
         │  (EntheAI / Local) │ │ (tool-eval) │ │ (Landlock / Bash)   │
         └────────────────────┘ └─────────────┘ └─────────────────────┘
 ```
@@ -60,23 +60,35 @@ Deepsiper Enthea 核心遵循 **一切皆插件** 的 [Cordis](https://github.co
 ### 安装与构建
 
 ```sh
-# 克隆仓库
+# Clone repository
 git clone https://github.com/8b-is/deepsiper-enthea.git
 cd deepsiper-enthea
 
-# 安装依赖并构建
+# Install dependencies and build harness
 pnpm install
 pnpm build
 ```
 
-### 运行任务
+
+---
+
+## 经验 AST 与逻辑基准套件
+
+Deepsiper Enthea 包含一套自动化的多场景 AST 评测框架（`examples/eval-entheai/driver/benchmark_sweep.py`），在隔离执行环境中验证数学精度、算法语法与零奖励-hacking：
+
+| 基准任务 | 类别 | 试验数 | 通过率 | 平均延迟 |
+|---|---|---|---|---|
+| **FizzBuzz 逻辑与 18 个边界场景** | 逻辑验证 | 2 / 2 | **100.0%** | ~9.4 s |
+| **$O(\log N)$ 矩阵幂斐波那契** | 数学求幂 | 2 / 2 | **100.0%** | ~14.8 s |
+| **Kademlia 256 位 XOR 度量距离** | 分布式 DHT 路由 | 2 / 2 | **100.0%** | ~10.5 s |
+| **BitLinear $\{-1, 0, +1\}$ 量化器** | 三元权重映射 | 2 / 2 | **100.0%** | ~11.0 s |
+| **AST 不变量与纯语法校验器** | 语法树验证 | 2 / 2 | **100.0%** | ~9.5 s |
+
+### 运行基准扫描
 
 ```sh
-# 无头模式下执行任务
-pnpm dsh --profile headless "分析仓库安全态势并评估工具覆盖度"
-
-# 启动交互式 Web 控制台与面板
-pnpm dsh web
+# Execute the full multi-case benchmark suite
+python3 examples/eval-entheai/driver/benchmark_sweep.py
 ```
 
 ---

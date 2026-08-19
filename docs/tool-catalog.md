@@ -20,6 +20,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tools` | `run_code` | `ctx.tools`, `ctx.codeRuntime (execution time)`, `ctx.systemPrompt` | `tool/call`, `one tool/code-dispatch-start + tool/code-dispatch pair per bridged sub-call`, `tool/result` | - | Owned by the tool registry as a reserved transport outside filterable capability layers under `mode: code` / `mode: both` (see the Code Mode Agent Note). Under `code` it is the registry's only wire contribution; the other visible capabilities are declared in a generated SDK section in the loaded runtime's language, and a program calls them through bindings scheduled under the native concurrency contract (submission-ordered starts and policy; concurrency-safe bodies overlap up to `maxParallelSubCalls`) that re-enter the complete guarded tool pipeline and link each nested execution to this outer result. |
 | `@deepseek-ai/dsh-plan-mode` | `exit_plan_mode` | `ctx.tools`, `ctx.systemPrompt`, `ctx.userQuestions (execution time, opportunistic)` | `tool/call`, `plan/mode inactive on an approved review`, `tool/result` | - | exit_plan_mode stays in the model-facing schema while planning is inactive so transitions add no tool-catalog churn on top of the plan-policy change. Its execute path rejects calls outside plan mode; in plan mode it presents the plan over the user-questions seam (approve / keep planning with feedback), and approval logs plan mode inactive at the step boundary. |
 | `@deepseek-ai/dsh-tool-bash` | `bash` | `ctx.tools`, `ctx.shell`, `ctx.systemPrompt`, `ctx.shellEnv`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | The bash tool is the model-facing consumer of the bash executor seam. A `run_in_background` run registers with the generic `ctx.jobs` runtime and is collected/stopped through the `job_*` tools from `@deepseek-ai/dsh-tool-jobs`; the `enableRunInBackground` config (default true) removes the parameter entirely when disabled. |
+| `@deepseek-ai/dsh-tool-nu` | `nu` | `ctx.tools`, `ctx.shell`, `ctx.systemPrompt`, `ctx.shellEnv`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-pwsh` | `pwsh` | `ctx.tools`, `ctx.shell`, `ctx.systemPrompt`, `ctx.shellEnv`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | The pwsh tool is the PowerShell-dialect consumer of the bash executor seam for Windows compositions (a PowerShell executor such as `@deepseek-ai/dsh-pwsh-local` backs `ctx.shell`); it mirrors the bash tool call-for-call minus sandbox controls — `run_in_background` runs register with the generic `ctx.jobs` runtime and are collected/stopped through the `job_*` tools, and the managed `DSH_*` environment comes from `@deepseek-ai/dsh-shell-env`. Each call runs in a fresh process (no persistent PTY session), with native `C:\...` paths and `$env:NAME` variables. |
 | `@deepseek-ai/dsh-tool-cordis` | `cordis_define`, `cordis_inspect_list`, `cordis_inspect_query`, `cordis_inspect_self`, `cordis_run`, `cordis_stop`, `cordis_undefine` | `ctx.tools`, `ctx.dynamicCordisRunner` | `tool/call`, `tool/result`, `process-local dynamic package lifecycle` | - | Not in any shipped tree (a deliberate opt-in — dynamic package code reaches the real runtime, see .agents/notes/implemented/feature/2026-07-08-self-referential-cordis-toolset.md). The toolset injects `ctx.dynamicCordisRunner` from `@deepseek-ai/dsh-cordis-host-runner`, which owns the definition registry and the vm sandbox; a composition missing it never activates the tools. A running package may register ADDITIONAL model-visible tools until it is stopped, undefined, or DSH restarts; a full changed request header logs those tool-set changes. |
 | `@deepseek-ai/dsh-tool-bash-persistent` | `bash` | `ctx.tools`, `ctx.terminals`, `an owning Agent at execution time` | `tool/call`, `PTY shell state`, `tool/result` | - | One owner-isolated persistent bash tool; deployment composition supplies the PTY backend and may override the model-facing environment description. |
@@ -39,6 +40,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-eval` | `eval_case` | `ctx.tools`, `ctx.shell` | `tool/call`, `tool/result` | - | eval_case scores a candidate output by running a deployment-configured grader in a subprocess; the grader owns the verdict (exit 0 = pass) and the tool reports it with bounded detail. A deployment with no benchmarks fails loud at load. |
+| `@deepseek-ai/dsh-tool-everos` | `everos_memory_add`, `everos_memory_flush`, `everos_memory_search` | `ctx.tools`, `a reachable EverOS server at baseURL` | `tool/call`, `tool/result` | - | everos_memory_add stores conversation messages in a local EverOS server buffer; everos_memory_flush forces boundary extraction for a session; everos_memory_search retrieves episodes, profiles, agent cases, and agent skills for exactly one owner (user_id XOR agent_id). All wire payloads follow the EverOS /api/v2 dialect; bounds the schema cannot express (batch size, top_k, radius) are enforced in the executor. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
@@ -274,7 +276,7 @@ exit_plan_mode stays in the model-facing schema while planning is inactive so tr
 
 ### `bash`
 
-Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. Current harness environment facts are exposed through managed `$DSH_*` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.
+Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Non-zero exits are reported as `[exit code: N]`. Harness environment facts are exposed through managed `$DSH_*` variables. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a command bug. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.
 
 ```json
 {
@@ -286,7 +288,7 @@ Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs 
     },
     "description": {
       "type": "string",
-      "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"npm install\" → \"Install package dependencies\"."
+      "description": "Short active-voice summary of the command, 5-10 words, shown in the UI. Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"."
     },
     "timeoutMs": {
       "type": "number",
@@ -311,6 +313,48 @@ Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs 
 Source: [`packages/shell/tool-bash/src/index.ts`](../packages/shell/tool-bash/src/index.ts)
 
 The bash tool is the model-facing consumer of the bash executor seam. A `run_in_background` run registers with the generic `ctx.jobs` runtime and is collected/stopped through the `job_*` tools from `@deepseek-ai/dsh-tool-jobs`; the `enableRunInBackground` config (default true) removes the parameter entirely when disabled.
+
+<a id="deepseek-aidsh-tool-nu"></a>
+
+## `@deepseek-ai/dsh-tool-nu`
+
+### `nu`
+
+Execute a nushell command (`nu --no-config-file -c`) and return its stdout/stderr. Each call runs in a fresh nu process: no state (cwd, variables, functions) persists between calls — pass `workdir` instead of using `cd`. Paths are POSIX; read environment variables with `$env.NAME`. Use nushell pipelines (`|`) and built-in commands (`ls`, `open`, `get`). Non-zero exits are reported as `[exit code: N]`. Current harness environment facts are exposed through managed `$env:DSH_*` variables; inspect them when needed. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]` — a policy denial, not a bug in the command; do not retry another way. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. A killed process settles as `[killed by signal: <signal>]` — treat it as an interruption, not a command failure. Set `run_in_background: true` for long-running commands: the call returns a job id immediately; read its output with `job_output` and stop it with `job_kill`.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "The nushell command to execute."
+    },
+    "description": {
+      "type": "string",
+      "description": "Clear, concise description of what this command does in active voice, 5-10 words (shown in the UI). Examples: \"ls\" → \"List files in current directory\"; \"git status\" → \"Show working tree status\"; \"Get-Process\" → \"List running processes\"."
+    },
+    "timeoutMs": {
+      "type": "number",
+      "description": "Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry."
+    },
+    "workdir": {
+      "type": "string",
+      "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
+    },
+    "run_in_background": {
+      "type": "boolean",
+      "description": "Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies."
+    }
+  },
+  "required": [
+    "command",
+    "description"
+  ]
+}
+```
+
+Source: [`packages/shell/tool-nu/src/index.ts`](../packages/shell/tool-nu/src/index.ts)
 
 <a id="deepseek-aidsh-tool-pwsh"></a>
 
@@ -1856,25 +1900,293 @@ Source: [`packages/eval/tool-eval/src/index.ts`](../packages/eval/tool-eval/src/
 
 eval_case scores a candidate output by running a deployment-configured grader in a subprocess; the grader owns the verdict (exit 0 = pass) and the tool reports it with bounded detail. A deployment with no benchmarks fails loud at load.
 
+<a id="deepseek-aidsh-tool-everos"></a>
+
+## `@deepseek-ai/dsh-tool-everos`
+
+### `everos_memory_add`
+
+Store conversation messages in the local EverOS memory server. Messages accumulate in the session buffer until boundary detection extracts them; call everos_memory_flush to force extraction. Store the CURRENT conversation turn here when it contains durable facts, preferences, or decisions worth remembering. `defer_extraction: true` persists the buffer without extracting — useful for a still-open conversation you do not want carved into episodes yet.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "The conversation session the messages belong to."
+    },
+    "messages": {
+      "type": "array",
+      "description": "1..500 messages to store, in chronological order. `timestamp` is Unix epoch in milliseconds; `sender_id` identifies the speaker (e.g. a user id or the agent name).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sender_id": {
+            "type": "string",
+            "description": "Who sent the message; also becomes the memory owner for user-memory searches."
+          },
+          "sender_name": {
+            "type": "string",
+            "description": "Display name of the sender."
+          },
+          "role": {
+            "type": "string",
+            "description": "user | assistant | tool.",
+            "enum": [
+              "user",
+              "assistant",
+              "tool"
+            ]
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "Message time as Unix epoch milliseconds."
+          },
+          "content": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Plain-text message content."
+              },
+              {
+                "type": "array",
+                "description": "Multimodal content pieces.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "description": "Content piece kind.",
+                      "enum": [
+                        "text",
+                        "image",
+                        "audio",
+                        "doc",
+                        "pdf",
+                        "html",
+                        "email"
+                      ]
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "Text payload."
+                    },
+                    "uri": {
+                      "type": "string",
+                      "description": "Reference URI for non-text pieces."
+                    },
+                    "base64": {
+                      "type": "string",
+                      "description": "Inline base64 payload."
+                    },
+                    "ext": {
+                      "type": "string",
+                      "description": "File extension hint."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Piece name."
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ]
+                }
+              }
+            ],
+            "description": "Message text, or multimodal content pieces."
+          },
+          "tool_calls": {
+            "type": "array",
+            "description": "Function calls made by an assistant message.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "function": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "arguments": {
+                      "type": "string",
+                      "description": "Arguments as a JSON string."
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "arguments"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "function"
+              ]
+            }
+          },
+          "tool_call_id": {
+            "type": "string",
+            "description": "The tool call this tool-result message answers."
+          }
+        },
+        "required": [
+          "sender_id",
+          "role",
+          "timestamp",
+          "content"
+        ]
+      }
+    },
+    "app_id": {
+      "type": "string",
+      "description": "Overrides the configured default app scope."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Overrides the configured default project scope."
+    },
+    "defer_extraction": {
+      "type": "boolean",
+      "description": "Persist to the buffer without running boundary detection or extraction."
+    }
+  },
+  "required": [
+    "session_id",
+    "messages"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-everos/src/index.ts`](../packages/memory/tool-everos/src/index.ts)
+
+### `everos_memory_flush`
+
+Force boundary detection over a session buffer in the local EverOS memory server. Extracts durable facts, episodes, and agent cases from the accumulated messages and commits them to Markdown. Call it when a conversation has reached a natural end (task finished, session closing) so its content becomes searchable; a session without accumulated messages reports `no_extraction`.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "The conversation session to flush."
+    },
+    "app_id": {
+      "type": "string",
+      "description": "Overrides the configured default app scope."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Overrides the configured default project scope."
+    }
+  },
+  "required": [
+    "session_id"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-everos/src/index.ts`](../packages/memory/tool-everos/src/index.ts)
+
+### `everos_memory_search`
+
+Search the local EverOS memory server for stored conversation memory. Provide EXACTLY ONE of `user_id` (user memory: episodes and profiles) or `agent_id` (agent memory: cases and skills). Use `method: keyword` for exact-fact lookups without vector or LLM costs; `hybrid` (default) fuses keyword and vector recall; `agentic` delegates the recall strategy to the server. `filters` accepts an EverOS filters DSL object, e.g. {"session_id": "sess-1"} to scope to one session.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Owner of user memory (episodes, profiles). Exactly one of user_id / agent_id is required."
+    },
+    "agent_id": {
+      "type": "string",
+      "description": "Owner of agent memory (cases, skills). Exactly one of user_id / agent_id is required."
+    },
+    "query": {
+      "type": "string",
+      "description": "What to recall — a fact, decision, or capability; the server retrieves the closest stored memory."
+    },
+    "method": {
+      "type": "string",
+      "description": "Retrieval method (default hybrid).",
+      "enum": [
+        "keyword",
+        "vector",
+        "hybrid",
+        "agentic"
+      ]
+    },
+    "top_k": {
+      "type": "integer",
+      "description": "-1 for all, or 1..100; default -1."
+    },
+    "radius": {
+      "type": "number",
+      "description": "Cosine-similarity floor in 0..1 applied at recall time."
+    },
+    "min_score": {
+      "type": "number",
+      "description": "Post-fusion relevance floor in 0..1 for episode hybrid retrieval."
+    },
+    "include_profile": {
+      "type": "boolean",
+      "description": "Also return the owner profile (user memory)."
+    },
+    "enable_llm_rerank": {
+      "type": "boolean",
+      "description": "Opt-in LLM rerank of agent cases and skills (needs a configured EverOS LLM)."
+    },
+    "filters": {
+      "type": "object",
+      "description": "EverOS filters DSL: recursive {\"AND\": [...]} / {\"OR\": [...]} nodes mixed with scalar fields like {\"session_id\": \"sess-1\"}.",
+      "additionalProperties": true
+    },
+    "app_id": {
+      "type": "string",
+      "description": "Overrides the configured default app scope."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Overrides the configured default project scope."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-everos/src/index.ts`](../packages/memory/tool-everos/src/index.ts)
+
+everos_memory_add stores conversation messages in a local EverOS server buffer; everos_memory_flush forces boundary extraction for a session; everos_memory_search retrieves episodes, profiles, agent cases, and agent skills for exactly one owner (user_id XOR agent_id). All wire payloads follow the EverOS /api/v2 dialect; bounds the schema cannot express (batch size, top_k, radius) are enforced in the executor.
+
 <a id="deepseek-aidsh-tool-workflow"></a>
 
 ## `@deepseek-ai/dsh-tool-workflow`
 
 ### `workflow`
 
-Run a JavaScript workflow script that orchestrates subagents at scale. Use this for work that fans out across many independent pieces — an audit over many files, a migration, multi-angle research, adversarial verification of findings — where you write the orchestration as a script instead of delegating turn by turn.
+Run a JavaScript workflow script that orchestrates subagents at scale — for work that fans out across many independent pieces where scripted orchestration beats turn-by-turn delegation.
 
-The workflow's identity rides the `meta` parameter as JSON: required `name` (short kebab-case) and `description` strings, optional `whenToUse` string and `phases` array (`{title, detail?, provider?, model?}`). The `script` parameter is the plain JavaScript body ONLY (NOT TypeScript, and NO `export const meta` statement — meta is a parameter, not code), running with top-level await; end with `return <value>` — the value must be JSON-serializable and is this tool's result.
+The `meta` parameter carries the workflow identity as JSON: required `name` (short kebab-case) and `description`, optional `whenToUse` and `phases`. The `script` parameter is the plain JavaScript body ONLY (no TypeScript, no `export const meta` — meta is a parameter), runs with top-level await, and ends with `return <value>` (JSON-serializable, this tool's result).
 
-Script-body hooks:
-- `agent(prompt, opts?): Promise<any>` — run one subagent to completion. Without `opts.schema` it resolves to the child's final text; with `opts.schema` (an object-rooted JSON Schema using ONLY type/properties/required/additionalProperties/items/enum/const/oneOf — no pattern/format/numeric bounds) it resolves to the validated object. Resolves `null` when the child fails (filter with `.filter(Boolean)`). Other opts: `label` (display), `phase` (progress group), and independent `provider`/`model` LLM target overrides (either may be provided alone). Anything else (`effort`/`isolation`/`agentType`) is rejected loudly.
-- `pipeline(items, ...stages): Promise<any[]>` — run each item through the stages independently with NO barrier between stages (prefer this for multi-stage work). Each stage receives `(prev, item, index)`. An ordinary stage throw drops that ITEM to `null` and skips its remaining stages.
-- `parallel(thunks): Promise<any[]>` — run zero-argument functions concurrently and await ALL of them (a barrier; use only when a stage genuinely needs every prior result together). A throwing thunk resolves to `null`.
-- `phase(title)` — start a progress phase; `log(message)` — narrate progress; `args` — the tool call's `args` input, verbatim.
+Script hooks: `agent(prompt, opts?)` runs one subagent (`opts.schema` returns a validated object; `label`/`phase`/`provider`/`model` opts); `pipeline(items, ...stages)` runs each item through the stages independently (a stage throw drops that item to `null`); `parallel(thunks)` runs thunks concurrently and awaits all (a throwing thunk resolves `null`); `phase(title)`/`log(message)` narrate; `args` is the call input verbatim. Misused hooks throw and kill the script.
 
-Misused hooks (bad arguments, unknown options, unsupported schemas, tripped caps) throw errors that ALWAYS kill the script — they never dissolve into a per-item `null`.
-
-Constraints: concurrency and total-agent caps apply; no filesystem, network, timers, or Node.js APIs are provided — the agents do the work, the script only coordinates them. The run executes in the foreground: this call returns when the whole script finishes.
+Constraints: concurrency and total-agent caps apply; no filesystem, network, timers, or Node.js APIs — agents do the work, the script coordinates. Runs in the foreground: the call returns when the script finishes.
 
 ```json
 {
