@@ -63,6 +63,33 @@ decomposed cause, never just "something dropped."
 - **No writes anywhere** on the cache/request path. The observer cannot cause
   a regression — worst case it emits a wrong notification.
 
+### 2.5 OPTIONAL controller mode (folded in, 2026-08-19)
+
+Modal's CPU + GPU **memory snapshots** (Ministral-3 example: `enable_memory_snapshot`
++ `enable_gpu_snapshot`, sleep/wake endpoints, `warmup()` before snapshot so
+CUDA graphs are captured) give the observer an action layer when the operator
+opts in. The observer stays advisory by default; a separate **controller**
+consumer subscribes to the same event stream and may:
+
+- on `phase-shift`: put the inference backend to **sleep** (weights offloaded
+  to CPU, KV cache emptied) and, when the phase returns (reuse ratio back in
+  band), restore the **snapshot** for that phase — a warm state in ~1/10 the
+  cold-start time.
+- on `environment-degraded`: leave the backend up (latency noise is not a
+  phase change); optionally surface the degradation to a scheduling layer.
+
+Preconditions that make the controller safe:
+- Snapshots are taken **after** the warm-up window (the warm state is the
+  snapshot), mirroring `warmup()` before `snap=True`.
+- The controller is opt-in (a profile row, never a `dsh-base` default) and
+  shares the observer's settled-history rule: it never acts on the current
+  or next turn.
+- It reproduces the reference backend's behavior (parity check) before the
+  snapshot is trusted.
+
+The observer→controller split keeps the observer read-only; the controller
+owns all mutation.
+
 ## 3. Proposed shape (implementation sketch)
 
 - `@deepseek-ai/dsh-workload-observer` — Service Definition (`ctx.workload`):
