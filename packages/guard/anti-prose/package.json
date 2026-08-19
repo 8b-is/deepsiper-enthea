@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-anti-prose",
   "description": "Core anti-prose (caveman-style) response policy: installs an English-only terse-response section with lite/full/ultra intensity",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-nu-local",
   "description": "Local nushell executor for the shell capability seam, provisioned from a Nix store path for deterministic execution",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publishConfig": {
     "access": "public"
   },

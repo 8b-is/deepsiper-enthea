@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-eval-consensus",
   "description": "Council-of-Elders inference consensus eval: run one task across model routes and aggregate via geometric-mean-style agreement",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publishConfig": {
     "access": "public"
   },
