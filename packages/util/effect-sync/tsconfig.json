@@ -9,19 +9,7 @@
   ],
   "references": [
     {
-      "path": "../../../vendor/cosmokit"
-    },
-    {
       "path": "../../../vendor/cordis"
-    },
-    {
-      "path": "../../util/brand"
-    },
-    {
-      "path": "../../util/effect-sync"
-    },
-    {
-      "path": "../../llm/llm"
     },
     {
       "path": "../../runtime-diagnostics/invariants"

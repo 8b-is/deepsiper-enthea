@@ -12,6 +12,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
+import { effectSync } from '@deepseek-ai/dsh-effect-sync'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import { QuantProviderId } from './brand.ts'
 import type {
@@ -79,17 +80,14 @@ export class Quant extends Service implements QuantService {
     }
 
     // All checks passed: reserve the id in one lifecycle controller so disposal releases it.
-    const dispose = this.ctx.effect(function* (this: Quant) {
+    return effectSync(this.ctx, (registerTeardown) => {
       this.providerIds.add(id)
       this.providers.set(id, provider)
-      yield () => {
+      registerTeardown(() => {
         this.providerIds.delete(id)
         this.providers.delete(id)
-      }
-    }.bind(this), 'quant.registerProvider()')
-    // ctx.effect's disposer returns Promise<void>; our disposer API is synchronous
-    // fire-and-forget — discard the (always-resolved) promise.
-    return () => void dispose()
+      })
+    }, 'quant.registerProvider()')
   }
 
   async execute(request: QuantRequest, signal?: AbortSignal): Promise<QuantResult> {

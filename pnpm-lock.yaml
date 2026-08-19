@@ -5588,6 +5588,9 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@deepseek-ai/dsh-effect-sync':
+        specifier: workspace:^
+        version: link:../../util/effect-sync
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
@@ -5899,6 +5902,9 @@ importers:
       '@deepseek-ai/dsh-brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@deepseek-ai/dsh-effect-sync':
+        specifier: workspace:^
+        version: link:../../util/effect-sync
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
@@ -8432,6 +8438,15 @@ importers:
         version: link:../../runtime-diagnostics/invariants
 
   packages/util/brand:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+
+  packages/util/effect-sync:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^

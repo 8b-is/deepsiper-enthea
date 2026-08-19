@@ -12,6 +12,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
+import { effectSync } from '@deepseek-ai/dsh-effect-sync'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import type { LspProviderId } from './brand.ts'
 import type {
@@ -127,17 +128,14 @@ export class Lsp extends Service implements LspService {
 
     // All checks passed: reserve id and every extension in one lifecycle controller so disposal
     // releases them together.
-    const dispose = this.ctx.effect(function* (this: Lsp) {
+    return effectSync(this.ctx, (registerTeardown) => {
       this.providerIds.add(id)
       for (const [ext, route] of pending) this.routes.set(ext, route)
-      yield () => {
+      registerTeardown(() => {
         this.providerIds.delete(id)
         for (const ext of pending.keys()) this.routes.delete(ext)
-      }
-    }.bind(this), 'lsp.registerProvider()')
-    // ctx.effect's disposer returns Promise<void>; our disposer API is synchronous
-    // fire-and-forget — discard the (always-resolved) promise.
-    return () => void dispose()
+      })
+    }, 'lsp.registerProvider()')
   }
 
   async query(request: LspQueryRequest, signal?: AbortSignal): Promise<LspQueryResult> {

@@ -18,6 +18,9 @@
       "path": "../../util/brand"
     },
     {
+      "path": "../../util/effect-sync"
+    },
+    {
       "path": "../../llm/llm"
     },
     {

@@ -1,6 +1,6 @@
 # quant/ - 低位量化能力族
 
-English | [中文](README.zh.md)
+[English](README.md) | 中文
 
 低位（BitNet b1.58 三值）量化能力缝：Service Definition、参考（软件）provider 与可选（opt-in）的面向模型 `quant` 工具。全部为 **product** 包。
 

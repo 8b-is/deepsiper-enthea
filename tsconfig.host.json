@@ -312,6 +312,7 @@
     { "path": "./packages/quant/quant" },
     { "path": "./packages/quant/quant-reference" },
     { "path": "./packages/quant/tool-quant" },
+    { "path": "./packages/util/effect-sync" },
     { "path": "./apps/cli" }
   ]
 }

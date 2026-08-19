@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-quant",
-  "description": "Abstract low-bit quantization capability seam (ctx.quant) for the DeepSeek Harness — provider registry keyed by branded backend id, order-independent selection, normalized group ternary quantize / ternary GEMM / capabilities requests and results aligned to entheai ternary semantics, and the QuantError taxonomy",
+  "name": "@deepseek-ai/dsh-effect-sync",
+  "description": "Synchronous disposer seam over Cordis ctx.effect — register a fiber-scoped effect whose teardown runs through a sync disposer, with the async reject path logged instead of unhandled",
   "version": "0.3.3",
   "publishConfig": {
     "access": "public"
@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/8b-is/deepsiper-enthea.git",
-    "directory": "packages/quant/quant"
+    "directory": "packages/util/effect-sync"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -32,17 +32,11 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-brand": "workspace:^",
-    "@deepseek-ai/dsh-effect-sync": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/dsh-brand": "workspace:^",
-    "@deepseek-ai/dsh-effect-sync": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
-    "@deepseek-ai/dsh-llm": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }
