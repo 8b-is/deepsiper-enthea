@@ -264,6 +264,29 @@
     - id: tool-skill
       name: '@deepseek-ai/dsh-tool-skill'
 
+    # ULTRA-LSP: language-server code intelligence in core — the seam, one
+    # stdio provider (TypeScript/JavaScript via npx), and the model-facing
+    # `lsp` tool. The tool stays unavailable (LSP_UNAVAILABLE) until a
+    # provider registers; deployments without npx override the server list.
+    - id: lsp
+      name: '@deepseek-ai/dsh-lsp'
+
+    - id: lsp-stdio
+      name: '@deepseek-ai/dsh-lsp-stdio'
+      config:
+        servers:
+          typescript:
+            command: npx
+            args: [--yes, typescript-language-server@5.0.0, --stdio]
+            extensionToLanguage:
+              .ts: typescript
+              .tsx: typescriptreact
+              .js: javascript
+              .jsx: javascriptreact
+
+    - id: tool-lsp
+      name: '@deepseek-ai/dsh-tool-lsp'
+
     - id: commands
       name: '@deepseek-ai/dsh-commands'
 

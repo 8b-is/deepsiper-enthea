@@ -5,7 +5,7 @@
     "trials": 2,
     "passed": 2,
     "pass_rate": 100.0,
-    "avg_latency_ms": 9430.676187505014
+    "avg_latency_ms": 16762.700103980023
   },
   {
     "id": "fibonacci_matrix",
@@ -13,7 +13,7 @@
     "trials": 2,
     "passed": 2,
     "pass_rate": 100.0,
-    "avg_latency_ms": 14784.126771002775
+    "avg_latency_ms": 16114.776729489677
   },
   {
     "id": "kademlia_xor",
@@ -21,7 +21,7 @@
     "trials": 2,
     "passed": 2,
     "pass_rate": 100.0,
-    "avg_latency_ms": 10552.771895992919
+    "avg_latency_ms": 12831.430062506115
   },
   {
     "id": "bitlinear_ternary",
@@ -29,7 +29,7 @@
     "trials": 2,
     "passed": 2,
     "pass_rate": 100.0,
-    "avg_latency_ms": 10963.88493750419
+    "avg_latency_ms": 13948.342666495591
   },
   {
     "id": "ast_invariant",
@@ -37,6 +37,6 @@
     "trials": 2,
     "passed": 2,
     "pass_rate": 100.0,
-    "avg_latency_ms": 9534.722229000181
+    "avg_latency_ms": 13632.408791512717
   }
 ]

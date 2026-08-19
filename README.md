@@ -18,6 +18,7 @@ English | [中文](README.zh.md)
 ## Fork Enhancements
 
 - **Sovereign Backend**: Native integration with [EntheAI](https://github.com/8b-is) and self-hosted inference nodes with zero external data leakage.
+- **ULTRA-LSP in core**: Language-server code intelligence (`goToDefinition`, `findReferences`, `goToImplementation`, `hover`) shipped in the `dsh-base` core bundle with a TypeScript/JavaScript stdio provider, so the `lsp` tool is available in every profile.
 - **Evaluation Plugins**: Pluggable evaluation suites including `tool-eval`, `eval-entheai`, and custom benchmarking metrics.
 - **OpenCode Bridge & JSON-RPC SDK**: Drive evaluation runs and automated agent loops programmatically from OpenCode or custom orchestrators.
 - **Multi-Model Orchestration**: Unified provider interfaces for DeepSeek, Gemini, local models, and any OpenAI-compatible endpoint.
@@ -77,17 +78,20 @@ Deepsiper Enthea includes an automated multi-case AST evaluation harness (`examp
 
 | Benchmark Task | Category | Trials | Pass Rate | Mean Latency |
 |---|---|---|---|---|
-| **FizzBuzz Logic & 18 Edge Cases** | Logic Verification | 2 / 2 | **100.0%** | ~9.4 s |
-| **$O(\log N)$ Matrix Power Fibonacci** | Mathematical Exponentiation | 2 / 2 | **100.0%** | ~14.8 s |
-| **Kademlia 256-bit XOR Metric Distance** | Distributed DHT Routing | 2 / 2 | **100.0%** | ~10.5 s |
-| **BitLinear $\{-1, 0, +1\}$ Quantizer** | Ternary Weight Mapping | 2 / 2 | **100.0%** | ~11.0 s |
-| **AST Invariant & Pure Syntax Validator** | Syntax Tree Verification | 2 / 2 | **100.0%** | ~9.5 s |
+| **FizzBuzz Logic & 18 Edge Cases** | Logic Verification | 2 / 2 | **100.0%** | ~16.8 s |
+| **$O(\log N)$ Matrix Power Fibonacci** | Mathematical Exponentiation | 2 / 2 | **100.0%** | ~16.1 s |
+| **Kademlia 256-bit XOR Metric Distance** | Distributed DHT Routing | 2 / 2 | **100.0%** | ~12.8 s |
+| **BitLinear $\{-1, 0, +1\}$ Quantizer** | Ternary Weight Mapping | 2 / 2 | **100.0%** | ~13.9 s |
+| **AST Invariant & Pure Syntax Validator** | Syntax Tree Verification | 2 / 2 | **100.0%** | ~13.6 s |
 
 ### Run the Benchmark Sweep
 
 ```sh
-# Execute the full multi-case benchmark suite
-python3 examples/eval-entheai/driver/benchmark_sweep.py
+# Keyless fast gate (no dsh runtime): grading logic + canonical validator
+pnpm bench:entheai:verify
+
+# Full multi-case sweep against the built dsh runtime (inline stub backend)
+pnpm bench:entheai
 ```
 
 

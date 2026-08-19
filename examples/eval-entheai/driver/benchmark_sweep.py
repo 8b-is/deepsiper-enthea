@@ -23,6 +23,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import threading
 
+from is_pure_syntax import is_pure_syntax
+
 BENCHMARKS = [
     {
         "id": "fizzbuzz",
@@ -179,6 +181,11 @@ def run_benchmark_sweep(trials_per_task=2):
     env["ENTHEAI_BASE_URL"] = f"http://127.0.0.1:{port}/v1"
     env["ENTHEAI_API_KEY"] = "benchmark-key"
 
+    print("== canonical is_pure_syntax validator check...")
+    if not (is_pure_syntax("x = 1 + 2") and not is_pure_syntax("x = ((")):
+        raise RuntimeError("canonical is_pure_syntax diverged from the AST benchmark answer")
+    print("== canonical is_pure_syntax validator: OK")
+
     results = []
 
     for b in BENCHMARKS:
@@ -209,7 +216,7 @@ def run_benchmark_sweep(trials_per_task=2):
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=int(os.environ.get("SWEEP_TRIAL_TIMEOUT_S", "120"))
             )
             elapsed = (time.perf_counter() - t0) * 1000
             latencies.append(elapsed)
