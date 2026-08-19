@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-host-info",
   "description": "Model-facing host hardware context contributed from a Neon sysinfo addon, fail-closed on unsupported hosts",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publishConfig": {
     "access": "public"
   },

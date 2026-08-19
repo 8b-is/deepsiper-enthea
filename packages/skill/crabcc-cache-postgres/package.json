@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-crabcc-cache-postgres",
   "description": "Local Postgres durable cache for crabcc symbol/reference lookups",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-quant-reference",
   "description": "Reference (software) provider for the DeepSeek Harness quantization capability seam (ctx.quant) — registers a pure-software backend matching entheai crates/ternary group ternary quantize semantics plus a dense ternary GEMM over dequantized weights, bounded by maxOutputBytes",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publishConfig": {
     "access": "public"
   },
