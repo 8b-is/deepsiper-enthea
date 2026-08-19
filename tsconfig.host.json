@@ -309,6 +309,9 @@
     { "path": "./packages/lsp/lsp" },
     { "path": "./packages/lsp/lsp-stdio" },
     { "path": "./packages/lsp/tool-lsp" },
+    { "path": "./packages/quant/quant" },
+    { "path": "./packages/quant/quant-reference" },
+    { "path": "./packages/quant/tool-quant" },
     { "path": "./apps/cli" }
   ]
 }

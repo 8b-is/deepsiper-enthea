@@ -287,6 +287,17 @@
     - id: tool-lsp
       name: '@deepseek-ai/dsh-tool-lsp'
 
+    # QUANT: low-bit (BitNet b1.58 ternary) quantization in core — the seam
+    # plus the pure-software reference provider. Zero model-visible surface:
+    # the model-facing `quant` tool stays opt-in until a hardware backend
+    # passes the audit-checklist evidence gate. Hardware providers override
+    # or disable the reference row through a profile patch.
+    - id: quant
+      name: '@deepseek-ai/dsh-quant'
+
+    - id: quant-reference
+      name: '@deepseek-ai/dsh-quant-reference'
+
     - id: commands
       name: '@deepseek-ai/dsh-commands'
 
