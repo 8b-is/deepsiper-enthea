@@ -1,3 +1,13 @@
+
+## the N+1 — enthea v108's examiner
+
+The unified kernel (kernel8 · ayeOS · cordis · mem8) lives under enthea
+v108; THIS harness is its N+1: the sovereign, agent-driven evaluation
+lane that watches the lane. Cordis plugin architecture + EntheAI
+backends + multi-model benchmarking — the examiner side of the same
+kernel. The corpus above all; the evaluations row the verdicts.
+
+---
 # Deepsiper Enthea
 
 [![Version](https://img.shields.io/badge/version-0.1.0--rc.7-blue.svg)](package.json)
