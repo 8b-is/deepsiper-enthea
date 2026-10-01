@@ -5,15 +5,24 @@ export const QuickstartTerminal: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false)
 
   const commands = {
-    cli: `# 1. Clone sovereign harness fork
+    cli: `# 1. Clone the sovereign harness fork
 git clone https://github.com/8b-is/deepsiper-enthea.git
 cd deepsiper-enthea
 
-# 2. Install dependencies with pnpm & TypeScript 6
+# 2. Install (Node 22.19+ or 24+, pnpm 11+)
 pnpm install
 
-# 3. Launch the sovereign web console & JSON-RPC gateway
-pnpm dsh web`,
+# 3. Give it a brain — any OpenAI-compatible endpoint works
+export DEEPSEEK_API_KEY=sk-...
+
+# 4. First run: one headless task, end to end
+pnpm dsh --profile headless "Say hello and list the files in this directory"
+
+# 5. Or the console, at http://127.0.0.1:3080
+pnpm dsh web
+
+# 6. Watch the agent edit its own runtime (Cordis hot-swap)
+pnpm run demo:cordis`,
     sdk: `// Programmatic JSON-RPC Client Integration
 import { Client } from '@deepseek-ai/dsh-sdk'
 
