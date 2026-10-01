@@ -133,7 +133,10 @@ describe('tool-todo real Loader composition through cordis.yml', () => {
     { label: 'is not boolean', configLines: ['    allowParallelInProgress: "no"'], failure: '$.allowParallelInProgress expected boolean' },
   ])('fails loading when allowParallelInProgress $label', async ({ configLines, failure }) => {
     // The policy is self-contained, so misconfiguration fails at load: the
-    // entry's apply rejects and boot never reaches a running tool.
-    await expect(boot(configLines)).rejects.toThrow(failure)
+    // entry's fiber retains the config-validation error under the best-effort
+    // Loader, and boot never reaches a running tool.
+    const ctx = await boot(configLines)
+    const entry = [...ctx.loader.entries()].find(row => row.options.name === '@deepseek-ai/dsh-tool-todo')
+    await expect(entry?.fiber?.await()).rejects.toThrow(failure)
   }, 30_000)
 })

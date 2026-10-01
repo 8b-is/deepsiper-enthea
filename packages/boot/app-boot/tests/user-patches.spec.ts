@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Hmr from '@deepseek-ai/cordis-plugin-hmr'
 import Include, { type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
@@ -96,7 +96,7 @@ describe('loadOptionalPatches', () => {
 function writeTree(dir: string): string {
   writeFileSync(join(dir, 'noop.mjs'), [
     'export const name = "noop"',
-    'export function apply(_ctx, config = {}) {',
+    'export async function apply(_ctx, config = {}) {',
     '  if (config.fail) throw new Error("candidate config failed")',
     '}',
     '',
@@ -185,7 +185,9 @@ describe('Loader config interpolation', () => {
       await provider?.update({ disabled: true })
       await provider?.update({ config: { fail: true } })
       await provider?.update({ disabled: false })
-      await expect(ctx.loader.await()).rejects.toThrow('rejected provider')
+      await ctx.loader.await()
+      const reader = [...ctx.loader.entries()].find(entry => entry.options.id === 'reader')
+      await expect(reader?.fiber?.await()).rejects.toThrow('rejected provider')
       expect(ctx.get('readerResult')).toBeUndefined()
 
       await provider?.update({ disabled: true })
@@ -257,7 +259,8 @@ describe('Loader entry disabled interpolation', () => {
       const disabledFalse = { __jsExpr: 'process.version.length === 0' } as unknown as boolean
       await entry?.update({ disabled: disabledTrue })
       expect(entry?.disabled).toBe(true)
-      expect(entry?.fiber).toBeUndefined()
+      await ctx.loader.await()
+      expect(entry?.fiber?.uid).toBeNull()
       await entry?.update({ disabled: disabledFalse })
       expect(entry?.disabled).toBe(false)
       expect(entry?.fiber).toBeDefined()
@@ -312,7 +315,7 @@ describe('boot with user patches', () => {
     }
   })
 
-  it('watches add, failure, recovery, and removal through transactional HMR', { timeout: 20_000 }, async () => {
+  it('watches add, failure, recovery, and removal through the user patch layer', { timeout: 20_000 }, async () => {
     const dir = tmp()
     const userDir = tmp()
     const filename = join(userDir, PROFILE_PATCH_FILENAME)
@@ -320,10 +323,8 @@ describe('boot with user patches', () => {
     const ctx = await boot(NAME, writeTree(dir), basePatches)
     await ctx.plugin(Timer)
     await ctx.plugin(Hmr, { root: [], ignored: [], debounce: 0 })
-    const failures: Array<{ filename: string; error: Error }> = []
-    ctx.on('hmr/config-update-failed', (failedFilename, error) => {
-      failures.push({ filename: failedFilename, error })
-    })
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    const failures = () => warn.mock.calls.filter(call => String(call[0]).includes('config reload at'))
     const dispose = await watchUserPatches(ctx, {
       binName: NAME,
       filename,
@@ -334,16 +335,15 @@ describe('boot with user patches', () => {
       await eventually(() => (entryConfig(ctx, 'noop') as { value?: string }).value === 'live', 'user patch addition was not applied')
 
       writeFileSync(filename, '- id: noop\n  config:\n    fail: true\n')
-      await eventually(() => failures.length === 1, 'failed candidate was not broadcast')
-      expect(failures[0]).toMatchObject({ filename })
-      expect(failures[0]?.error).toBeInstanceOf(Error)
-      expect((entryConfig(ctx, 'noop') as { value?: string }).value).toBe('live')
+      await eventually(() => failures().length === 1, 'failed candidate was not logged')
+      await eventually(() => warn.mock.calls.some(call => call[0] instanceof Error), 'failed candidate logged no error')
+      // Best-effort Loader: the candidate config commits and the failed fiber
+      // is reported by the post-refresh audit instead of rolling the tree back.
+      expect((entryConfig(ctx, 'noop') as { fail?: boolean }).fail).toBe(true)
       await settleChokidarChangeThrottle()
 
       writeFileSync(filename, 'invalid: [unclosed\n')
-      await eventually(() => failures.length === 2, 'parse failure was not broadcast')
-      expect(failures[1]?.error).toBeInstanceOf(Error)
-      expect((entryConfig(ctx, 'noop') as { value?: string }).value).toBe('live')
+      await eventually(() => failures().length === 2, 'parse failure was not logged')
       await settleChokidarChangeThrottle()
 
       writeFileSync(filename, '- id: noop\n  config:\n    value: recovered\n')
@@ -352,7 +352,7 @@ describe('boot with user patches', () => {
 
       unlinkSync(filename)
       await eventually(() => (entryConfig(ctx, 'noop') as { value?: string }).value === 'generated', 'user patch removal did not restore the app-owned patch')
-      expect(failures).toHaveLength(2)
+      expect(failures()).toHaveLength(2)
       await settleChokidarChangeThrottle()
 
       // Default compose: the user layer IS the whole patch list, so a
@@ -387,18 +387,23 @@ describe('boot with user patches', () => {
   })
 
   it('returns a no-op disposer when the tree is disposed while the watcher opens', async () => {
-    // A surface can dispose the whole tree while registerConfig's effect
-    // registration is still in flight (the HMR effect then fails with
+    // A surface can dispose the whole tree while the watcher's effect
+    // registration is still in flight (the effect then fails with
     // INACTIVE_EFFECT); the app is exiting exactly as asked, so the watcher
     // must not crash the process. The stub makes the race deterministic — the
     // live-teardown ordering itself is not stageable.
     const dir = tmp()
     const ctx = await boot(NAME, writeTree(dir))
     try {
+      ctx.provide('hmr', {})
       const teardown = Object.assign(new Error('cannot create effect on inactive context'), { code: 'INACTIVE_EFFECT' })
-      ctx.provide('hmr', { registerConfig: () => Promise.reject(teardown) })
-      const dispose = await watchUserPatches(ctx, { binName: NAME, filename: join(tmp(), PROFILE_PATCH_FILENAME) })
-      await expect(dispose()).resolves.toBeUndefined()
+      const effect = vi.spyOn(ctx, 'effect').mockRejectedValue(teardown)
+      try {
+        const dispose = await watchUserPatches(ctx, { binName: NAME, filename: join(tmp(), PROFILE_PATCH_FILENAME) })
+        await expect(dispose()).resolves.toBeUndefined()
+      } finally {
+        effect.mockRestore()
+      }
     } finally {
       await ctx.fiber.dispose()
     }

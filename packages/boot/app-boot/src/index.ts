@@ -20,6 +20,7 @@ import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from 
 import type {} from '@deepseek-ai/cordis-plugin-hmr'
 // Side-effect type import: resolves `ctx.get('systemPrompt')` to the service.
 import type {} from '@deepseek-ai/dsh-system-prompt'
+import { watchConfig } from './watch-config.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -234,23 +235,47 @@ export async function watchUserPatches(
   options: UserPatchWatchOptions,
 ): Promise<() => Promise<void>> {
   const { binName, filename, compose = (patches: PatchOptions[]) => patches } = options
-  const hmr = ctx.get('hmr')
-  if (hmr === undefined) throw new Error(`${binName}: user patch-layer watching requires the Cordis HMR service`)
+  if (ctx.get('hmr') === undefined) throw new Error(`${binName}: user patch-layer watching requires the Cordis HMR service`)
   const entry = bootstrapIncludes.get(ctx)
   if (entry === undefined) throw new Error(`${binName}: user patch-layer watching requires the root Include entry`)
-  const register = hmr.registerConfig(filename, async () => {
+  const register = watchConfig(ctx, filename, {}, async () => {
     // Re-read the include's non-patch options per refresh: a writer that
     // updates the root Include's other options between refreshes (none exists
     // today) must not have them silently reverted by a user-layer reload.
     const { patches: _previousPatches, ...includeConfig } = entry.options.config as Include.Config
     const userPatches = loadOptionalPatches(binName, filename) ?? []
     const patches = compose(userPatches)
+    // Snapshot the pre-refresh fibers first: their rejections are consumed
+    // below, and a fiber that was already failed does not re-reject the
+    // refresh when its unchanged failure survives.
+    const previousFibers = [...ctx.loader.entries()].flatMap((row) => {
+      const fiber = row.fiber
+      if (fiber === undefined || fiber.state === FIBER_PENDING) return []
+      return [{ fiber, failed: fiber.state === FIBER_FAILED || fiber.state === FIBER_DISPOSED }]
+    })
     await entry.update({
       config: {
         ...includeConfig,
         patches,
       },
     })
+    // Attach rejection consumers to every current fiber before anything else
+    // awaits: a failed activation must not escape as an unhandled rejection
+    // while the refresh walks toward its audit.
+    const consume = [...ctx.loader.entries()].flatMap((row) => {
+      const fiber = row.fiber
+      return fiber === undefined || fiber.state === FIBER_PENDING ? [] : [fiber.await().catch(() => {})]
+    })
+    // Consume the pre-refresh rejections, then settle the queue, then judge:
+    // a new activation failure becomes a refresh rejection the watcher logs,
+    // and entries parked pending fail loud instead of settling silently.
+    const settled = await Promise.allSettled(previousFibers.map(({ fiber }) => fiber.await()))
+    await ctx.loader.await()
+    for (const [index, result] of settled.entries()) {
+      if (result.status === 'rejected' && !previousFibers[index]?.failed) throw result.reason
+    }
+    await Promise.all(consume)
+    await assertEntriesActivated(ctx, binName)
   })
   try {
     return await register
@@ -671,6 +696,7 @@ export function assertEntriesLoaded(ctx: Context, binName: string): void {
 const FIBER_PENDING = 0 as FiberState.PENDING
 const FIBER_ACTIVE = 2 as FiberState.ACTIVE
 const FIBER_FAILED = 3 as FiberState.FAILED
+const FIBER_DISPOSED = 4 as FiberState.DISPOSED
 
 /** Render a thrown plugin value without discarding an Error's original stack. */
 function formatActivationError(error: unknown): string {

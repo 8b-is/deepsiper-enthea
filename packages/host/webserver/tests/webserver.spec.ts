@@ -210,12 +210,15 @@ describe('real Loader composition', () => {
     try {
       let failure: unknown
       try {
-        await loadComposition(takenPort)
+        const ctx = await loadComposition(takenPort)
+        // Best-effort Loader: the failed activation stays on the entry's fiber.
+        const entry = [...ctx.loader.entries()].find(row => row.options.name === '@deepseek-ai/dsh-host-webserver')
+        await entry?.fiber?.await()
       } catch (error) {
         failure = error
       }
       second = context
-      expect(String(failure)).toMatch(/failed to apply loader entry.*EADDRINUSE/)
+      expect(String(failure)).toMatch(/EADDRINUSE/)
     } finally {
       await second?.fiber.dispose()
       context = first

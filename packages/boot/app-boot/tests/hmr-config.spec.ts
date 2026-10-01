@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, watch as fsWatch, writeFileSync } from 'node:fs'
 import { realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +7,19 @@ import { Context } from '@deepseek-ai/cordis'
 import Hmr from '@deepseek-ai/cordis-plugin-hmr'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Timer from '@deepseek-ai/cordis-plugin-timer'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { FSWatcher, type ChokidarOptions } from 'chokidar'
+import { watchConfig } from '../src/watch-config.ts'
+
+const configWatch = vi.hoisted(() => ({ create: undefined as ((options?: ChokidarOptions) => FSWatcher) | undefined }))
+vi.mock('chokidar', async (importOriginal) => {
+  const native = await importOriginal<typeof import('chokidar')>()
+  return {
+    ...native,
+    watch: (paths: string | string[], options?: ChokidarOptions) =>
+      configWatch.create === undefined ? native.watch(paths, options) : configWatch.create(options),
+  }
+})
 
 async function bootHmr(dir: string, root: string[] = [], usePolling?: boolean): Promise<Context> {
   const ctx = new Context()
@@ -23,6 +35,19 @@ async function bootHmr(dir: string, root: string[] = [], usePolling?: boolean): 
   return ctx
 }
 
+/**
+ * Block until this process's native directory watches deliver events. Chokidar
+ * reports `ready` once `fs.watch()` returns, but libuv on darwin builds the
+ * per-process FSEvents stream later on its CoreFoundation thread, and a write
+ * that lands before then is never reported. Closing any directory handle runs
+ * the stream-teardown wait, so a watcher registered before this call observes
+ * the next write. Linux inotify and Windows ReadDirectoryChangesW are armed
+ * inside `fs.watch()`, so there this is an immediate open and close.
+ */
+function ensureNativeWatchLive(dir: string): void {
+  fsWatch(dir).close()
+}
+
 async function eventually(test: () => boolean, message: string): Promise<void> {
   const deadline = Date.now() + 10_000
   while (!test()) {
@@ -31,7 +56,7 @@ async function eventually(test: () => boolean, message: string): Promise<void> {
   }
 }
 
-describe('HMR exact config paths', () => {
+describe('watchConfig exact paths', () => {
   it('observes module changes when its watch base is a filesystem alias', { timeout: 30_000 }, async () => {
     const target = mkdtempSync(join(tmpdir(), 'dsh-hmr-module-canonical-'))
     const alias = `${target}-alias`
@@ -71,13 +96,13 @@ describe('HMR exact config paths', () => {
     const target = mkdtempSync(join(tmpdir(), 'dsh-hmr-canonical-'))
     const alias = `${target}-alias`
     symlinkSync(target, alias, process.platform === 'win32' ? 'junction' : 'dir')
-    const ctx = await bootHmr(alias)
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
     try {
-      await ctx.hmr.registerConfig('plugins.yml', () => {})
-      await expect(ctx.hmr.registerConfig(join(await realpath(target), 'plugins.yml'), () => {}))
+      await watchConfig(ctx, join(alias, 'plugins.yml'), {}, () => {})
+      await expect(watchConfig(ctx, join(await realpath(target), 'plugins.yml'), {}, () => {}))
         .rejects.toThrow('config path already registered')
     } finally {
-      await ctx.fiber.dispose()
       unlinkSync(alias)
       rmSync(target, { recursive: true, force: true })
     }
@@ -86,10 +111,11 @@ describe('HMR exact config paths', () => {
   it('observes add, change, and unlink outside its module roots', { timeout: 20_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
-    const ctx = await bootHmr(dir)
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
     const observed: string[] = []
     try {
-      await ctx.hmr.registerConfig(filename, () => {
+      await watchConfig(ctx, filename, {}, () => {
         try {
           observed.push(readFileSync(filename, 'utf8'))
         } catch (error) {
@@ -97,15 +123,16 @@ describe('HMR exact config paths', () => {
           observed.push('missing')
         }
       })
+      ensureNativeWatchLive(dir)
 
       writeFileSync(filename, 'one', { flag: 'wx' })
-      await eventually(() => observed.includes('one'), 'HMR did not observe config creation')
+      await eventually(() => observed.includes('one'), 'watchConfig did not observe config creation')
       writeFileSync(filename, 'two')
-      await eventually(() => observed.includes('two'), 'HMR did not observe config change')
+      await eventually(() => observed.includes('two'), 'watchConfig did not observe config change')
       unlinkSync(filename)
-      await eventually(() => observed.includes('missing'), 'HMR did not observe config removal')
+      await eventually(() => observed.includes('missing'), 'watchConfig did not observe config removal')
     } finally {
-      await ctx.fiber.dispose()
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 
@@ -113,90 +140,102 @@ describe('HMR exact config paths', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const dir = join(root, 'later')
     const filename = join(dir, 'plugins.yml')
-    const ctx = await bootHmr(root)
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
     const observed: string[] = []
     try {
-      await ctx.hmr.registerConfig(filename, () => {
+      await watchConfig(ctx, filename, {}, () => {
         observed.push(readFileSync(filename, 'utf8'))
       })
+      ensureNativeWatchLive(root)
       mkdirSync(dir)
       writeFileSync(filename, 'created')
-      await eventually(() => observed.includes('created'), 'HMR did not observe config creation under a new parent')
+      await eventually(() => observed.includes('created'), 'watchConfig did not observe config creation under a new parent')
     } finally {
-      await ctx.fiber.dispose()
+      rmSync(root, { recursive: true, force: true })
     }
   })
 
-  it('serializes refreshes and waits for them during disposal', { timeout: 20_000 }, async () => {
+  it('rejects a patch path whose parent is a regular file', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dsh-patch-parent-'))
+    const parent = join(dir, 'file')
+    writeFileSync(parent, '')
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    try {
+      await expect(watchConfig(ctx, join(parent, 'plugins.yml'), {}, () => {}))
+        .rejects.toThrow('config watch parent is not a directory')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('serializes refreshes and waits for them during disposal', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
-    writeFileSync(filename, 'one')
-    const ctx = await bootHmr(dir)
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
+    const watcher = new FSWatcher()
+    const previousFactory = configWatch.create
+    onTestFinished(() => { configWatch.create = previousFactory })
+    configWatch.create = () => { queueMicrotask(() => { watcher.emit('ready') }); return watcher }
     const started = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
-    const observed: string[] = []
+    onTestFinished(() => { release.resolve(undefined) })
+    let calls = 0
     let active = 0
     let maxActive = 0
-    try {
-      const dispose = await ctx.hmr.registerConfig(filename, async () => {
-        active += 1
-        maxActive = Math.max(maxActive, active)
-        observed.push(readFileSync(filename, 'utf8'))
-        if (observed.length === 1) {
-          started.resolve(undefined)
-          await release.promise
-        }
-        active -= 1
-      })
-      await started.promise
-      writeFileSync(filename, 'two')
-      // Chokidar coalesces atomic writes for 100 ms by default. Wait beyond
-      // that window so this edit is queued before registration disposal.
-      await new Promise(resolve => setTimeout(resolve, 250))
-
-      let disposed = false
-      const disposal = dispose().then(() => { disposed = true })
-      await Promise.resolve()
-      expect(disposed).toBe(false)
-      release.resolve(undefined)
-      await disposal
-      expect(maxActive).toBe(1)
-      expect(observed).toEqual(['one', 'two'])
-    } finally {
-      release.resolve(undefined)
-      await ctx.fiber.dispose()
-    }
+    const dispose = await watchConfig(ctx, filename, {}, async () => {
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      if (++calls === 1) {
+        started.resolve(undefined)
+        await release.promise
+      }
+      active -= 1
+    })
+    watcher.emit('change', join(dir, 'unrelated.yml'))
+    expect(calls).toBe(0)
+    watcher.emit('add', filename)
+    await started.promise
+    watcher.emit('change', filename)
+    watcher.emit('unlink', filename)
+    let disposed = false
+    const disposal = dispose().then(() => { disposed = true })
+    await Promise.resolve()
+    expect(disposed).toBe(false)
+    release.resolve(undefined)
+    await disposal
+    expect(maxActive).toBe(1)
+    expect(calls).toBe(2)
   })
 
-  it('normalizes refresh failures and broadcasts them without escaping the watcher', { timeout: 20_000 }, async () => {
+  it('logs refresh failures without escaping the watcher', { timeout: 20_000 }, async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
-    const ctx = await bootHmr(dir)
-    const failure = Promise.withResolvers<{ filename: string; error: Error }>()
-    let failureCount = 0
+    const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
+    onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+    onTestFinished(() => { warn.mockRestore() })
+    const reloadWarnings = () => warn.mock.calls.filter(call => String(call[0]).includes('config reload at'))
     try {
-      ctx.on('hmr/config-update-failed', () => {
-        throw new Error('observer failed')
-      })
-      ctx.on('hmr/config-update-failed', (failedFilename, error) => {
-        failureCount += 1
-        failure.resolve({ filename: failedFilename, error })
-      })
-      await ctx.hmr.registerConfig(filename, () => { throw 42 })
+      await watchConfig(ctx, filename, {}, () => { throw 42 })
+      ensureNativeWatchLive(dir)
       writeFileSync(filename, 'invalid')
-
-      const observed = await failure.promise
-      expect(observed.filename).toBe(filename)
-      expect(observed.error).toBeInstanceOf(Error)
-      expect(observed.error.message).toBe('42')
+      await eventually(() => reloadWarnings().length === 1, 'refresh failure was not logged')
+      const logged = warn.mock.calls.find(call => call[0] instanceof Error)?.[0]
+      expect(logged).toBeInstanceOf(Error)
+      expect((logged as Error).message).toBe('42')
 
       // Let Chokidar's atomic-write window close before requiring a distinct
       // second notification from the same path.
       await new Promise(resolve => setTimeout(resolve, 250))
       writeFileSync(filename, 'invalid again')
-      await eventually(() => failureCount === 2, 'HMR stopped broadcasting after an observer rejected')
+      await eventually(() => reloadWarnings().length === 2, 'the watcher stopped observing after a refresh failure')
     } finally {
-      await ctx.fiber.dispose()
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 })

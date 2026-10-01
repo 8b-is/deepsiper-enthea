@@ -86,10 +86,18 @@ export async function apply(ctx: Context): Promise<void> {
       for (const name of [BACKEND_PACKAGES[backend], SURFACE_PACKAGES[backend]]) {
         ids.push(await ctx.loader.create({ name }))
       }
-    } catch (cause) {
-      // Setup owns the entries it created until it returns the disposer: leaving
-      // the backend mounted would make a retry collide with its own
+      // The best-effort Loader contains import and activation failures on the
+      // created entries instead of rejecting `create`, so audit them here:
+      // this setup owns both entries until it returns the disposer, and
+      // leaving the backend mounted would make a retry collide with its own
       // directoryPicker registration.
+      for (const id of ids) {
+        const entry = ctx.loader.store[id]
+        const fiber = entry?.fiber
+        if (fiber === undefined) throw new Error(`${entry?.options.name ?? id} failed to load`)
+        await fiber.await()
+      }
+    } catch (cause) {
       await unmount()
       throw cause
     }

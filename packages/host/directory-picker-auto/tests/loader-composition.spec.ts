@@ -217,7 +217,11 @@ describe('real Loader composition', () => {
 
   it('unmounts the backend when the surface entry fails to load', { timeout: 60_000 }, async () => {
     stubAttendedHost()
-    await expect(loadComposition('127.0.0.1', { failSurface: true })).rejects.toThrow(/surface import failed/)
+    const { ctx } = await loadComposition('127.0.0.1', { failSurface: true })
+    // Best-effort Loader: the failed surface entry is audited by the setup
+    // itself, and the failure stays on the owning entry's fiber.
+    const auto = [...ctx.loader.entries()].find(entry => entry.options.name === AUTO)
+    await expect(auto?.fiber?.await()).rejects.toThrow(/dsh-client-ui-directory-picker-native failed to load/)
 
     // Setup owns both entries until it returns its disposer, so a failed surface
     // must take the mounted backend with it: otherwise a retry collides with the
