@@ -1307,3 +1307,15 @@ a {
 .footer-links a:hover {
   color: #38bdf8;
 }
+
+/* ambient sound toggle — constellation contract, aligned with teamlab */
+.sound-toggle{
+  position:fixed;right:18px;bottom:18px;z-index:90;width:46px;height:46px;
+  border-radius:50%;border:1px solid rgba(98,230,201,.35);
+  background:rgba(2,6,23,.72);backdrop-filter:blur(8px);
+  color:#62e6c9;font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .25s,color .25s,box-shadow .25s;
+}
+.sound-toggle:hover{border-color:#39ff14;box-shadow:0 0 18px rgba(57,255,20,.35)}
+.sound-toggle[data-on="true"]{color:#39ff14;border-color:#39ff14;box-shadow:0 0 22px rgba(57,255,20,.45)}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { WhaleWaveCanvas } from './components/WhaleWaveCanvas'
 import { SonarAudioVisualizer } from './components/SonarAudioVisualizer'
+import { SoundToggle } from './components/SoundToggle'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { FeatureGrid } from './components/FeatureGrid'
@@ -37,6 +38,7 @@ export const App: React.FC = () => {
     <div className="landing-root">
       {/* 60FPS SOTA Animated Hydrodynamic Ocean Waves & Whale Background */}
       <WhaleWaveCanvas />
+      <SoundToggle />
 
       <div className="landing-content">
         <Header
