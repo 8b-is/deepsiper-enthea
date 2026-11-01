@@ -1,0 +1,39 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`publishes the Astra catalog and selects it for a fresh web session without a model call 1`] = `
+{
+  "id": "openai-codex",
+  "models": [
+    {
+      "id": "gpt-6-astra",
+      "name": "GPT-6 Astra",
+      "reasoning": {
+        "defaultEffort": "high",
+        "efforts": [
+          {
+            "id": "low",
+            "name": "Low",
+          },
+          {
+            "id": "medium",
+            "name": "Medium",
+          },
+          {
+            "id": "high",
+            "name": "High",
+          },
+          {
+            "id": "xhigh",
+            "name": "Xhigh",
+          },
+          {
+            "id": "max",
+            "name": "Max",
+          },
+        ],
+      },
+    },
+  ],
+  "name": "OpenAI via OpenCode sign-in",
+}
+`;

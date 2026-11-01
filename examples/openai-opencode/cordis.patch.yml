@@ -1,0 +1,27 @@
+# Opt-in hosted inference using an access token supplied by scripts/opencode-local.ts.
+# The pi-ai catalog owns the Codex transport and derives the account id from the token.
+- id: llm-pi-ai
+  config:
+    providers:
+      openai-codex:
+        displayName: OpenAI via OpenCode sign-in
+        apiKeyEnv: DSH_OPENCODE_ACCESS_TOKEN
+        reasoning: high
+        # SSE closes with each request; pi-ai's cached WebSockets outlive headless teardown.
+        transport: sse
+        models:
+          - id: gpt-6-astra
+            name: GPT-6 Astra
+            contextWindow: 272000
+            input: [text, image]
+            reasoningEfforts:
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
+
+- id: agent-default-model
+  config:
+    provider: openai-codex
+    model: gpt-6-astra

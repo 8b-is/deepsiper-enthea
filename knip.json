@@ -23,6 +23,9 @@
   ],
   "workspaces": {
     ".": {
+      "ignoreBinaries": [
+        "opencode"
+      ],
       "entry": [
         "scripts/**/*.mjs",
         "scripts/**/*.cjs"

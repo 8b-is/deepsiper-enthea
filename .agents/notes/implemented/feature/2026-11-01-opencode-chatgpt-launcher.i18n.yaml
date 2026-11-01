@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-01-opencode-chatgpt-launcher.md
+2026-11-01-opencode-chatgpt-launcher.md: f29a8242c158b54ad92dd709f869573750bb0c80
+2026-11-01-opencode-chatgpt-launcher.zh.md: 81dfd1bb46e18be0da5bae61c87a5f02eaa0100e
