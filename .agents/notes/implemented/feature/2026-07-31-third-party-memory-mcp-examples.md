@@ -12,7 +12,7 @@ The acceptance bar is stronger than "the socket connects": each reference must s
 
 ## Decision
 
-Ship four default-off Cordis overlay examples under `examples/mcp-memory`: Memorix, MCP Reference Memory, Engram, and the 8b-is Engram sovereign edition. Every file inserts exactly one `@deepseek-ai/dsh-mcp-client` row. None is referenced by the shipped composition, and the CLI declares the generic bridge only so an explicitly selected overlay can resolve it. The 8b-is Engram entry is an analysis bridge over its checkout (`engram_hash`, `engram_compress`, `engram_quantum`, `engram_info`, `engram_bench`), not a durable recall store; the write-then-recall acceptance bar applies to the other three.
+Ship four default-off Cordis overlay examples under `examples/mcp-memory`: Memorix, MCP Reference Memory, Engram, and the 8b-is Engram sovereign edition. Every file inserts exactly one `@deepseek-ai/dsh-mcp-client` row. None is referenced by the shipped composition, and the CLI declares the generic bridge only so an explicitly selected overlay can resolve it. The 8b-is Engram entry exposes both durable `p/q` N-gram memory (`engram_remember`, `engram_recall`) and checkout analysis tools (`engram_hash`, `engram_compress`, `engram_quantum`, `engram_info`, `engram_bench`), so all four overlays satisfy the write-then-recall acceptance bar.
 
 These third-party configurations are provided as interoperability examples only. Their inclusion does not imply endorsement, recommendation, partnership, or ongoing support by DeepSeek. There is no memory preset registry, vendor-specific DSH plugin, universal memory service, installation UI, migration layer, health checker, or reconnect controller. Another memory MCP server uses the same documented stdio or Streamable HTTP row.
 
@@ -36,11 +36,11 @@ The generic stdio transport scrubs ambient credential-shaped and `DSH_*` variabl
 | Memorix | npm `1.3.0`, tag commit `500792cad3144142293bfbb20acb4841c9f7fcfa` |
 | MCP Reference Memory | npm `2026.7.4`, package commit `6dd0a683e198783e30feabf7abaf42f925bd18b1` |
 | Engram | tag `v1.20.0`, commit `ba9e46ced152c37a7cb9e576153c41995873e2fc` |
-| Engram (8b-is sovereign) | `main` commit `2ba0789e7d50dfcf1df1b9fea50a191ecfb423ed` |
+| Engram (8b-is sovereign) | `main` commit `58c58b1a5677655e77ed521e343ca51bf8eba192` |
 
-Storage remains provider-owned. Memorix uses `~/.memorix/data` and Engram uses `~/.engram` by default. The Reference Memory example sets a stable `$HOME/.dsh-mcp-reference-memory.jsonl` path instead of writing into the installed npm package directory. Each provider's own environment variable can override these locations before DSH starts.
+Storage remains provider-owned. Memorix uses `~/.memorix/data`, Engram uses `~/.engram`, and the 8b-is sovereign edition uses `~/.engram-8b` (`ENGRAM_8B_STORE`) by default. The Reference Memory example sets a stable `$HOME/.dsh-mcp-reference-memory.jsonl` path instead of writing into the installed npm package directory. Each provider's own environment variable can override these locations before DSH starts.
 
-Project identity remains provider-owned: Memorix and Engram use the DSH working directory's Git project, with Engram optionally accepting `ENGRAM_PROJECT`. The 8b-is edition is stateless analysis over its checkout, keeps no store, and requires `ENGRAM_8B_ROOT` to name that checkout.
+Project identity remains provider-owned: Memorix and both Engram editions use the DSH working directory's Git project, with Engram optionally accepting `ENGRAM_PROJECT`. The 8b-is edition also requires `ENGRAM_8B_ROOT` to name its checkout so `mcp/engram_mcp.py` can import `engram_pq.py`.
 
 ## Model guidance
 

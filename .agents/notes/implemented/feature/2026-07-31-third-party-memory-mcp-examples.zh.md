@@ -12,7 +12,7 @@ Status: implemented
 
 ## 决策
 
-在 `examples/mcp-memory` 下交付四份默认关闭的 Cordis overlay 示例：Memorix、MCP Reference Memory、Engram，以及 8b-is Engram 主权版。每个文件只插入一个 `@deepseek-ai/dsh-mcp-client` 配置项。交付组合不会引用这些文件；CLI（命令行界面）仅声明通用桥接器，使用户显式选择 overlay 时可以解析它。8b-is Engram 条目是其检出目录之上的分析桥接（`engram_hash`、`engram_compress`、`engram_quantum`、`engram_info`、`engram_bench`），而不是持久召回存储；先写后召回的验收标准适用于其余三项。
+在 `examples/mcp-memory` 下交付四份默认关闭的 Cordis overlay 示例：Memorix、MCP Reference Memory、Engram，以及 8b-is Engram 主权版。每个文件只插入一个 `@deepseek-ai/dsh-mcp-client` 配置项。交付组合不会引用这些文件；CLI（命令行界面）仅声明通用桥接器，使用户显式选择 overlay 时可以解析它。8b-is Engram 条目同时提供持久 `p/q` N-gram 记忆工具（`engram_remember`、`engram_recall`）与检出目录分析工具（`engram_hash`、`engram_compress`、`engram_quantum`、`engram_info`、`engram_bench`），因此全部四份 overlay 均满足先写后召回的验收标准。
 
 这些第三方配置仅作为互操作参考；收录不代表 DeepSeek 的认可、推荐、合作关系或持续支持承诺。系统没有记忆预设注册表、提供方专属 DSH 插件、通用记忆服务、安装 UI、迁移层、健康检查器或重连控制器。其他记忆 MCP 服务器可以使用同一份文档中的 stdio 或 Streamable HTTP 配置项。
 
@@ -36,11 +36,11 @@ Status: implemented
 | Memorix | npm `1.3.0`，tag commit `500792cad3144142293bfbb20acb4841c9f7fcfa` |
 | MCP Reference Memory | npm `2026.7.4`，package commit `6dd0a683e198783e30feabf7abaf42f925bd18b1` |
 | Engram | tag `v1.20.0`，commit `ba9e46ced152c37a7cb9e576153c41995873e2fc` |
-| Engram（8b-is 主权版） | `main` commit `2ba0789e7d50dfcf1df1b9fea50a191ecfb423ed` |
+| Engram（8b-is 主权版） | `main` commit `58c58b1a5677655e77ed521e343ca51bf8eba192` |
 
-存储仍由提供方负责。Memorix 默认使用 `~/.memorix/data`，Engram 默认使用 `~/.engram`。Reference Memory 示例设置稳定的 `$HOME/.dsh-mcp-reference-memory.jsonl` 路径，而不是写入已安装的 npm 包目录。每个提供方自己的环境变量都可以在 DSH 启动前覆盖这些位置。
+存储仍由提供方负责。Memorix 默认使用 `~/.memorix/data`，Engram 默认使用 `~/.engram`，8b-is 主权版默认使用 `~/.engram-8b`（`ENGRAM_8B_STORE`）。Reference Memory 示例设置稳定的 `$HOME/.dsh-mcp-reference-memory.jsonl` 路径，而不是写入已安装的 npm 包目录。每个提供方自己的环境变量都可以在 DSH 启动前覆盖这些位置。
 
-项目身份仍由提供方负责：Memorix 和 Engram 使用 DSH 工作目录中的 Git 项目，其中 Engram 还可以选择接受 `ENGRAM_PROJECT`。8b-is 版是对其检出目录的无状态分析，不保留存储，并要求 `ENGRAM_8B_ROOT` 指向该检出目录。
+项目身份仍由提供方负责：Memorix 和两个版本的 Engram 使用 DSH 工作目录中的 Git 项目，其中 Engram 还可以选择接受 `ENGRAM_PROJECT`。8b-is 版还要求 `ENGRAM_8B_ROOT` 指向其检出目录，以便 `mcp/engram_mcp.py` 导入 `engram_pq.py`。
 
 ## 模型指导
 

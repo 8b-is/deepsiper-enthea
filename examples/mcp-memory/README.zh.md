@@ -19,7 +19,7 @@ stdio 桥接器在启动子进程前会主动移除环境中名称通常表示�
 | [Memorix](https://github.com/AVIDS2/memorix) | `memorix@1.3.0`（`500792cad3144142293bfbb20acb4841c9f7fcfa`） | stdio | Node 22.18+，并执行 `npm install --global memorix@1.3.0` |
 | [MCP Reference Memory](https://github.com/modelcontextprotocol/servers/tree/main/src/memory) | `@modelcontextprotocol/server-memory@2026.7.4`（`6dd0a683e198783e30feabf7abaf42f925bd18b1`） | stdio | `npm install --global @modelcontextprotocol/server-memory@2026.7.4` |
 | [Engram](https://github.com/Gentleman-Programming/engram) | `v1.20.0`（`ba9e46ced152c37a7cb9e576153c41995873e2fc`） | stdio | Go 1.25.10+，并执行 `go install github.com/Gentleman-Programming/engram/cmd/engram@v1.20.0`，或安装匹配的发布版二进制文件 |
-| [Engram（8b-is 主权版）](https://github.com/8b-is/Engram) | `main`（`2ba0789e7d50dfcf1df1b9fea50a191ecfb423ed`） | stdio | Python 3，并克隆 `8b-is/Engram`；设置 `ENGRAM_8B_ROOT` |
+| [Engram（8b-is 主权版）](https://github.com/8b-is/Engram) | `main`（`58c58b1a5677655e77ed521e343ca51bf8eba192`） | stdio | Python 3，并克隆 `8b-is/Engram`；设置 `ENGRAM_8B_ROOT` |
 
 ## 启用一个
 
@@ -72,7 +72,7 @@ export ENGRAM_8B_ROOT="$PWD/Engram"
 dsh web --patch "$PWD/examples/mcp-memory/engram-8b.cordis.yml"
 ```
 
-这是 DeepSeek Engram 的主权 `p/q` + `BFP-64` 版本，与 deepsiper-enthea 对齐。其 stdio 服务器公开 `engram_hash`、`engram_compress`、`engram_quantum`、`engram_info` 与 `engram_bench`：零浮点 N-gram 哈希、BFP-64 表压缩以及 Rust 基准测试。服务器从检出目录导入 `engram_pq.py`，因此 `ENGRAM_8B_ROOT` 必须指向克隆目录；未设置时 overlay 会拒绝解析。存储与项目选择仍由 Engram 负责，且该分支与上方的 Go `engram` 包是两套独立集成。
+这是 DeepSeek Engram 的主权 `p/q` + `BFP-64` 版本，与 deepsiper-enthea 对齐。其 stdio 服务器同时公开跨会话持久 `p/q` N-gram 记忆工具（`engram_remember`、`engram_recall`，默认存储于 `~/.engram-8b` 或 `ENGRAM_8B_STORE`）以及 `engram_hash`、`engram_compress`、`engram_quantum`、`engram_info` 与 `engram_bench`：零浮点 N-gram 哈希、BFP-64 表压缩以及 Rust 基准测试。服务器从检出目录导入 `engram_pq.py`，因此 `ENGRAM_8B_ROOT` 必须指向克隆目录；未设置时 overlay 会拒绝解析。存储（`~/.engram-8b` / `ENGRAM_8B_STORE`）与项目选择（`ENGRAM_PROJECT`）仍由 Engram 负责，且该分支与上方的 Go `engram` 包是两套独立集成。
 
 ## 可选的共用模型指令
 
