@@ -505,6 +505,15 @@ const sovereignAndEval = mirroredPages([
     order: 7,
   },
   {
+    source: 'docs/backends/openrouter.md',
+    route: 'reference/backends/openrouter.md',
+    contentLocale: 'en-US',
+    label: { root: 'OpenRouter 后端', en: 'OpenRouter Backend' },
+    sidebar: { root: 'zh-reference', en: 'en-reference' },
+    section: { root: '概念', en: 'Concepts' },
+    order: 8,
+  },
+  {
     source: 'docs/deployment.md',
     route: 'guide/deployment.md',
     contentLocale: 'en-US',

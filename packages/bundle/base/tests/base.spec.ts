@@ -39,6 +39,16 @@ describe('dsh-base bundle', () => {
     expect(rows.filter(row => row.id === 'subagent-claude-code')).toHaveLength(0)
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
+
+    // OpenRouter is a catalog route gated on its key: present mounts the route,
+    // absent leaves the pi-ai adapter dormant.
+    const piAi = rows.find(row => row.id === 'llm-pi-ai')
+    const providersExpr = (piAi?.config?.['providers'] as { __jsExpr?: string } | undefined)?.__jsExpr
+    if (providersExpr === undefined) throw new Error('llm-pi-ai must gate its OpenRouter route with a !!js expression')
+    expect(evaluate({ process: { env: { OPENROUTER_API_KEY: 'k' } } }, providersExpr)).toEqual({
+      openrouter: { apiKeyEnv: 'OPENROUTER_API_KEY' },
+    })
+    expect(evaluate({ process: { env: {} } }, providersExpr)).toEqual({})
   })
 
   it('gates each shell stack by platform with a symmetric disabled expression', () => {

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-01-openrouter-default-route.md
+2026-11-01-openrouter-default-route.md: 06e48565c66187ccfd6bc064bbf40f0f7de7034f
+2026-11-01-openrouter-default-route.zh.md: 1589ab5be1f12b9e35b335399f152e5e09c24fa3
