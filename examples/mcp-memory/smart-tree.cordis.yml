@@ -1,0 +1,11 @@
+# Opt-in reference for 8b-is/smart-tree's stdio MCP server (`st --mcp`).
+# Install `st` first: `cargo install smart-tree` or the matching release binary.
+# The server owns its cache, MEM8 records, and project selection.
+- insert:
+    - id: memory-smart-tree
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: smart-tree
+        transport: stdio
+        command: st
+        args: [--mcp]

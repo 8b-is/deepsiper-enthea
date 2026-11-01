@@ -74,6 +74,9 @@ import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
 import Quant from '@deepseek-ai/dsh-quant'
 import * as QuantReference from '@deepseek-ai/dsh-quant-reference'
 import * as ToolQuant from '@deepseek-ai/dsh-tool-quant'
+import * as QuantGaia from '@deepseek-ai/dsh-quant-gaia'
+import * as ToolVoice from '@deepseek-ai/dsh-tool-voice'
+import Voice from '@deepseek-ai/dsh-voice'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -202,10 +205,24 @@ const TOOL_PACKAGES: ToolPackage[] = [
     async mount(ctx) {
       await ctx.plugin(Quant)
       await ctx.plugin(QuantReference)
+      await ctx.plugin(QuantGaia)
       await ctx.plugin(ToolQuant)
     },
     note:
-      'quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference provider is mounted here so the schema is harvestable, and a deployment without one fails the call loud.',
+      'quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference and GAIA providers are mounted here so the schema is harvestable; a deployment mounts exactly one and fails the call loud without it.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-voice',
+    dir: 'tool-voice',
+    source: 'packages/interaction/tool-voice/src/index.ts',
+    requires: ['ctx.tools', 'ctx.voice'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(Voice)
+      await ctx.plugin(ToolVoice)
+    },
+    note:
+      'voice_speak speaks bounded text through the host text-to-speech binary (`say` on macOS, `espeak-ng` on Linux) and reports the binary and character count. The binary is a deployment choice; a host without one fails the call with the binary name.',
   },
   {
     pkg: '@deepseek-ai/dsh-skill-crabcc',

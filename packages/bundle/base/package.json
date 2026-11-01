@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-base",
   "description": "The shared dsh core as a profile bundle: every profile's first patch layer, inserting the base plugin rows over the empty profile root",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "publishConfig": {
     "access": "public"
   },
@@ -122,7 +122,13 @@
     "@deepseek-ai/dsh-user-questions": "workspace:^",
     "@deepseek-ai/dsh-web": "workspace:^",
     "@deepseek-ai/dsh-web-search-deepseek": "workspace:^",
-    "@deepseek-ai/dsh-workflow-worker-thread": "workspace:^"
+    "@deepseek-ai/dsh-workflow-worker-thread": "workspace:^",
+    "@deepseek-ai/dsh-quant-gaia": "workspace:^",
+    "@deepseek-ai/dsh-tool-quant": "workspace:^",
+    "@deepseek-ai/dsh-tool-voice": "workspace:^",
+    "@deepseek-ai/dsh-voice": "workspace:^",
+    "@deepseek-ai/dsh-voice-say": "workspace:^",
+    "@deepseek-ai/dsh-voice-kokoro": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-invariants": "workspace:^",

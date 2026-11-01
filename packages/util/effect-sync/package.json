@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-effect-sync",
   "description": "Synchronous disposer seam over Cordis ctx.effect — register a fiber-scoped effect whose teardown runs through a sync disposer, with the async reject path logged instead of unhandled",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "publishConfig": {
     "access": "public"
   },

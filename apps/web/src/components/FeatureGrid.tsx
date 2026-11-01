@@ -51,7 +51,7 @@ export const FeatureGrid: React.FC = () => {
     },
     {
       title: 'Poly-Pod Model Mesh',
-      desc: 'Unified model provider abstraction across DeepSeek R1/V3, Gemini 2.5, '
+      desc: 'Unified model provider abstraction across 8bseek R1/V3, Gemini 2.5, '
         + 'local vLLM/Ollama nodes, and standard OpenAI-compatible endpoints.',
       tag: 'OCEANIC-MESH',
       depth: '-2,800m',

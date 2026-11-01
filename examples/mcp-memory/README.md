@@ -19,7 +19,7 @@ The stdio bridge deliberately removes ambient variables whose names usually iden
 | [Memorix](https://github.com/AVIDS2/memorix) | `memorix@1.3.0` (`500792cad3144142293bfbb20acb4841c9f7fcfa`) | stdio | Node 22.18+ and `npm install --global memorix@1.3.0` |
 | [MCP Reference Memory](https://github.com/modelcontextprotocol/servers/tree/main/src/memory) | `@modelcontextprotocol/server-memory@2026.7.4` (`6dd0a683e198783e30feabf7abaf42f925bd18b1`) | stdio | `npm install --global @modelcontextprotocol/server-memory@2026.7.4` |
 | [Engram](https://github.com/Gentleman-Programming/engram) | `v1.20.0` (`ba9e46ced152c37a7cb9e576153c41995873e2fc`) | stdio | Go 1.25.10+ and `go install github.com/Gentleman-Programming/engram/cmd/engram@v1.20.0`, or the matching release binary |
-| [Engram (8b-is sovereign)](https://github.com/8b-is/Engram) | `main` (`2ba0789e7d50dfcf1df1b9fea50a191ecfb423ed`) | stdio | Python 3 and a clone of `8b-is/Engram`; set `ENGRAM_8B_ROOT` |
+| [Engram (8b-is sovereign)](https://github.com/8b-is/Engram) | `main` (`58c58b1a5677655e77ed521e343ca51bf8eba192`) | stdio | Python 3 and a clone of `8b-is/Engram`; set `ENGRAM_8B_ROOT` |
 
 ## Enable one
 
@@ -29,7 +29,7 @@ Pass one overlay to DSH:
 dsh web --patch "$PWD/examples/mcp-memory/memorix.cordis.yml"
 ```
 
-Replace the filename with `mcp-reference-memory.cordis.yml`, `engram.cordis.yml`, or `engram-8b.cordis.yml`. The path may point to a copied file anywhere on disk. No memory server is present in the shipped composition, so omitting `--patch` keeps every listed server disabled.
+Replace the filename with `mcp-reference-memory.cordis.yml`, `engram.cordis.yml`, `engram-8b.cordis.yml`, or `smart-tree.cordis.yml`. The path may point to a copied file anywhere on disk. No memory server is present in the shipped composition, so omitting `--patch` keeps every listed server disabled.
 
 To keep the selection across runs, merge the chosen file's single `insert` patch into a user patch layer — `$DSH_HOME/profiles/<name>/cordis.patch.yml` for one profile, or `$DSH_HOME/cordis.patch.yml` for every profile on the machine. Do not copy over an existing file: it may already contain unrelated user patches.
 
@@ -72,7 +72,7 @@ export ENGRAM_8B_ROOT="$PWD/Engram"
 dsh web --patch "$PWD/examples/mcp-memory/engram-8b.cordis.yml"
 ```
 
-This is the sovereign `p/q` + `BFP-64` edition of DeepSeek's Engram, aligned with deepsiper-enthea. Its stdio server exposes `engram_hash`, `engram_compress`, `engram_quantum`, `engram_info`, and `engram_bench` — zero-float N-gram hashing, BFP-64 table compression, and the Rust benchmark. The server imports `engram_pq.py` from its checkout, so `ENGRAM_8B_ROOT` must point at the clone; the overlay refuses to resolve without it. Storage and project selection stay Engram-owned, and this fork is a separate integration from the Go `engram` package above.
+This is the sovereign `p/q` + `BFP-64` edition of DeepSeek's Engram, aligned with deepsiper-enthea. Its stdio server exposes durable `p/q` N-gram memory tools (`engram_remember`, `engram_recall`, persisted under `~/.engram-8b` or `ENGRAM_8B_STORE`) together with `engram_hash`, `engram_compress`, `engram_quantum`, `engram_info`, and `engram_bench` — zero-float N-gram hashing, BFP-64 table compression, and the Rust benchmark. The server imports `engram_pq.py` from its checkout, so `ENGRAM_8B_ROOT` must point at the clone; the overlay refuses to resolve without it. Storage (`~/.engram-8b` / `ENGRAM_8B_STORE`) and project selection (`ENGRAM_PROJECT`) stay Engram-owned, and this fork is a separate integration from the Go `engram` package above.
 
 ## Optional shared model instruction
 

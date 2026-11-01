@@ -551,6 +551,12 @@ importers:
       '@deepseek-ai/dsh-pwsh-local':
         specifier: workspace:*
         version: link:../packages/shell/pwsh-local
+      '@deepseek-ai/dsh-quant':
+        specifier: workspace:^
+        version: link:../packages/quant/quant
+      '@deepseek-ai/dsh-quant-gaia':
+        specifier: workspace:^
+        version: link:../packages/quant/quant-gaia
       '@deepseek-ai/dsh-repeat-tool-reminder':
         specifier: workspace:*
         version: link:../packages/guard/repeat-tool-reminder
@@ -701,6 +707,9 @@ importers:
       '@deepseek-ai/dsh-tool-pwsh':
         specifier: workspace:*
         version: link:../packages/shell/tool-pwsh
+      '@deepseek-ai/dsh-tool-quant':
+        specifier: workspace:^
+        version: link:../packages/quant/tool-quant
       '@deepseek-ai/dsh-tool-ralph':
         specifier: workspace:*
         version: link:../packages/workflow/tool-ralph
@@ -728,6 +737,9 @@ importers:
       '@deepseek-ai/dsh-tool-todo':
         specifier: workspace:*
         version: link:../packages/todo/tool-todo
+      '@deepseek-ai/dsh-tool-voice':
+        specifier: workspace:^
+        version: link:../packages/interaction/tool-voice
       '@deepseek-ai/dsh-tool-web':
         specifier: workspace:*
         version: link:../packages/web/tool-web
@@ -743,6 +755,15 @@ importers:
       '@deepseek-ai/dsh-user-questions':
         specifier: workspace:*
         version: link:../packages/interaction/user-questions
+      '@deepseek-ai/dsh-voice':
+        specifier: workspace:^
+        version: link:../packages/interaction/voice
+      '@deepseek-ai/dsh-voice-kokoro':
+        specifier: workspace:^
+        version: link:../packages/interaction/voice-kokoro
+      '@deepseek-ai/dsh-voice-say':
+        specifier: workspace:^
+        version: link:../packages/interaction/voice-say
       '@deepseek-ai/dsh-web':
         specifier: workspace:*
         version: link:../packages/web/web
@@ -1109,6 +1130,9 @@ importers:
       '@deepseek-ai/dsh-quant':
         specifier: workspace:^
         version: link:../../quant/quant
+      '@deepseek-ai/dsh-quant-gaia':
+        specifier: workspace:^
+        version: link:../../quant/quant-gaia
       '@deepseek-ai/dsh-quant-reference':
         specifier: workspace:^
         version: link:../../quant/quant-reference
@@ -1211,6 +1235,9 @@ importers:
       '@deepseek-ai/dsh-tool-pwsh':
         specifier: workspace:^
         version: link:../../shell/tool-pwsh
+      '@deepseek-ai/dsh-tool-quant':
+        specifier: workspace:^
+        version: link:../../quant/tool-quant
       '@deepseek-ai/dsh-tool-ralph':
         specifier: workspace:^
         version: link:../../workflow/tool-ralph
@@ -1232,6 +1259,9 @@ importers:
       '@deepseek-ai/dsh-tool-todo':
         specifier: workspace:^
         version: link:../../todo/tool-todo
+      '@deepseek-ai/dsh-tool-voice':
+        specifier: workspace:^
+        version: link:../../interaction/tool-voice
       '@deepseek-ai/dsh-tool-web':
         specifier: workspace:^
         version: link:../../web/tool-web
@@ -1253,6 +1283,15 @@ importers:
       '@deepseek-ai/dsh-user-questions':
         specifier: workspace:^
         version: link:../../interaction/user-questions
+      '@deepseek-ai/dsh-voice':
+        specifier: workspace:^
+        version: link:../../interaction/voice
+      '@deepseek-ai/dsh-voice-kokoro':
+        specifier: workspace:^
+        version: link:../../interaction/voice-kokoro
+      '@deepseek-ai/dsh-voice-say':
+        specifier: workspace:^
+        version: link:../../interaction/voice-say
       '@deepseek-ai/dsh-web':
         specifier: workspace:^
         version: link:../../web/web
@@ -5228,6 +5267,34 @@ importers:
         specifier: workspace:^
         version: link:../user-questions
 
+  packages/interaction/tool-voice:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/dsh-voice':
+        specifier: workspace:^
+        version: link:../voice
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/interaction/user-approval:
     dependencies:
       '@deepseek-ai/schemastery':
@@ -5273,6 +5340,62 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
+
+  packages/interaction/voice:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/dsh-effect-sync':
+        specifier: workspace:^
+        version: link:../../util/effect-sync
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  packages/interaction/voice-kokoro:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-voice':
+        specifier: workspace:^
+        version: link:../voice
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  packages/interaction/voice-say:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-voice':
+        specifier: workspace:^
+        version: link:../voice
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
   packages/jobs/jobs:
     devDependencies:
@@ -5923,6 +6046,25 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
+
+  packages/quant/quant-gaia:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-quant':
+        specifier: workspace:^
+        version: link:../quant
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
   packages/quant/quant-reference:
     dependencies:

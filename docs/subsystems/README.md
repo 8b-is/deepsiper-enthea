@@ -33,6 +33,7 @@ One page per subsystem of the DeepSeek Harness: what it is, the data structures 
 | [sandbox.md](sandbox.md) | per-session policy resolution and the process-confinement seam: file-effect modes, execution/provider policies, `ConfinedArgv`, enforcement and fail-closed errors |
 | [code-runtime.md](code-runtime.md) | the code-execution seam: `CodeRunRequest`/`Result`, binding namespaces, captured logs, the `CodeRunFailure` taxonomy |
 | [quant.md](quant.md) | the quantization seam: a provider registry keyed by branded backend id, normalized ternary quantize/GEMM/capabilities requests, and the `QuantError` taxonomy |
+| [voice.md](voice.md) | the voice seam: a provider registry over `speak` and `transcribe`, branded backend ids, and the `VoiceError` taxonomy |
 | [extensions.md](extensions.md) | versioned dynamic Cordis Plugins and Packages, Host/Client activation, approval, runtime inspection, and lifecycle teardown |
 | [filesystem.md](filesystem.md) | the filesystem seam: `FsTarget`, read/write/edit outcomes, observed-file state, `FsErrorCode` |
 | [lsp.md](lsp.md) | the LSP navigation seam: `LspQueryRequest`/`Result`, `LspProvider`/`Service`, four operations, `LspError` |

@@ -38,9 +38,9 @@ const ZONES: ArchZone[] = [
     id: 'hadal',
     title: 'Hadal Trench (Abyss)',
     depth: '6,000m - 11,000m',
-    desc: 'Sovereign EntheAI reasoning pods, DeepSeek R1 core, and zero-telemetry SQLite logging.',
+    desc: 'Sovereign EntheAI reasoning pods, 8bseek R1 core, and zero-telemetry SQLite logging.',
     details: 'Air-gapped model inference enclaves. Complete operational silence: zero remote telemetry callbacks, schema-versioned durable session logs.',
-    technologies: ['DeepSeek R1 / V3', 'EntheAI Reasoning Pods', 'Monotonic SQLite Engine'],
+    technologies: ['8bseek R1 / V3', 'EntheAI Reasoning Pods', 'Monotonic SQLite Engine'],
   },
 ]
 
@@ -52,7 +52,7 @@ export const ArchitectureDiagram: React.FC = () => {
     depth: '6000m',
     desc: 'Deep',
     details: 'Sovereign',
-    technologies: ['DeepSeek R1'],
+    technologies: ['8bseek R1'],
   }
   const activeZone: ArchZone = ZONES.find(z => z.id === selectedId) ?? fallbackZone
 

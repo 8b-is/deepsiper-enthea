@@ -288,6 +288,7 @@ const subsystemGroups = [
     ['lsp.md', 'LSP 导航', 'LSP navigation'],
     ['code-runtime.md', '代码运行时', 'Code runtime'],
     ['quant.md', '量化', 'Quantization'],
+    ['voice.md', '语音', 'Voice'],
     ['web.md', 'Web 访问', 'Web access'],
     ['skills.md', '技能', 'Skills'],
     ['workflow.md', '工作流', 'Workflows'],

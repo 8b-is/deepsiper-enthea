@@ -55,7 +55,7 @@ const SEAMS: SeamItem[] = [
     name: '@deepseek-ai/dsh-llm-deepseek',
     category: 'seam',
     role: 'Service Provider',
-    description: 'Native DeepSeek R1/V3 model provider with reasoning token streaming and cache-hit telemetry.',
+    description: 'Native 8bseek R1/V3 model provider with reasoning token streaming and cache-hit telemetry.',
     injections: ['llm'],
   },
   {

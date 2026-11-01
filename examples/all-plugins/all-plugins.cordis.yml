@@ -1,0 +1,19 @@
+# Opt-in overlay that mounts every engine lane the base keeps out of the default
+# composition: the GAIA software quant engine with the quant_ternary tool, and
+# the voice_speak tool. Apply it to a profile:
+#   dsh web --patch "$PWD/examples/all-plugins/all-plugins.cordis.yml"
+# The voice tool resolves `say` on macOS and `espeak-ng` on Linux; a host with
+# neither fails the call with the binary name.
+- insert:
+    - id: quant
+      name: '@deepseek-ai/dsh-quant'
+    - id: quant-gaia
+      name: '@deepseek-ai/dsh-quant-gaia'
+    - id: tool-quant
+      name: '@deepseek-ai/dsh-tool-quant'
+    - id: voice
+      name: '@deepseek-ai/dsh-voice'
+    - id: voice-say
+      name: '@deepseek-ai/dsh-voice-say'
+    - id: tool-voice
+      name: '@deepseek-ai/dsh-tool-voice'

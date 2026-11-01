@@ -56,8 +56,8 @@ export const InteractiveEvaluator: React.FC = () => {
                 onChange={(e) => { setModel(e.target.value) }}
                 disabled={isRunning}
               >
-                <option value="deepseek-r1">DeepSeek R1 (671B MoE / 37B Active)</option>
-                <option value="deepseek-v3">DeepSeek V3 (Sovereign Reasoning)</option>
+                <option value="deepseek-r1">8bseek R1 (671B MoE / 37B Active)</option>
+                <option value="deepseek-v3">8bseek V3 (Sovereign Reasoning)</option>
                 <option value="entheai-leviathan">EntheAI Leviathan-R1 (Air-Gapped Pod)</option>
                 <option value="local-vllm">Local vLLM Submersible Instance</option>
               </select>

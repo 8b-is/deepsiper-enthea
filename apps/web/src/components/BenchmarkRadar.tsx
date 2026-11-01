@@ -23,8 +23,8 @@ const MODELS: ModelMetric[] = [
     highlight: 'Highest sovereignty & kernel Landlock isolation',
   },
   {
-    name: 'DeepSeek R1 Abyss',
-    provider: 'DeepSeek AI Direct',
+    name: '8bseek R1 Abyss',
+    provider: '8bseek AI Direct',
     sovereignty: 'Public / Self-Hosted Endpoint',
     toolUse: 98.6,
     securityIsolation: 94.0,
