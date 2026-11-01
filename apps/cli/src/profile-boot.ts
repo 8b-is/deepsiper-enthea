@@ -281,6 +281,10 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
           await ctx.loader.create({ name: '@deepseek-ai/cordis-plugin-timer' })
         }
         await ctx.loader.create({ name: '@deepseek-ai/cordis-plugin-hmr', config: { root: [] } })
+        // A created entry resolves its id before the fiber necessarily
+        // activates; the watcher reads the service synchronously, so settle
+        // the tree first.
+        await ctx.loader.await()
       }
       await watchUserPatches(ctx, {
         binName: NAME,

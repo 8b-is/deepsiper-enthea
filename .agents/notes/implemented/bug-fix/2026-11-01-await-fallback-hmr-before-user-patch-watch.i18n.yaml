@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-01-await-fallback-hmr-before-user-patch-watch.md
+2026-11-01-await-fallback-hmr-before-user-patch-watch.md: 4351308a11d1d0665c3c2a2b78da216351e1cd30
+2026-11-01-await-fallback-hmr-before-user-patch-watch.zh.md: dad281193169701c5a314b7abb478677b1aade55
