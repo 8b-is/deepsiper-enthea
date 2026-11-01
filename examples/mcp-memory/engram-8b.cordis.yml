@@ -1,0 +1,14 @@
+# Opt-in reference for 8b-is/Engram, the sovereign p/q + BFP-64 edition.
+# Clone https://github.com/8b-is/Engram and point ENGRAM_8B_ROOT at that
+# checkout; the stdio server is mcp/engram_mcp.py and owns its storage and
+# project selection.
+- insert:
+    - id: memory-engram-8b
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: engram-8b
+        transport: stdio
+        command: python3
+        args:
+          - !!js "(process.env.ENGRAM_8B_ROOT ?? (() => { throw new Error('ENGRAM_8B_ROOT must point at the 8b-is/Engram checkout') })()) + '/mcp/engram_mcp.py'"
+        cwd: !!js "process.env.ENGRAM_8B_ROOT ?? process.cwd()"
