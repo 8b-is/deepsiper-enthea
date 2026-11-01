@@ -71,6 +71,9 @@ import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
+import Quant from '@deepseek-ai/dsh-quant'
+import * as QuantReference from '@deepseek-ai/dsh-quant-reference'
+import * as ToolQuant from '@deepseek-ai/dsh-tool-quant'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -190,6 +193,20 @@ export interface ToolPackage {
  * guard proves it is exhaustive against the on-disk glob.
  */
 const TOOL_PACKAGES: ToolPackage[] = [
+  {
+    pkg: '@deepseek-ai/dsh-tool-quant',
+    dir: 'tool-quant',
+    source: 'packages/quant/tool-quant/src/index.ts',
+    requires: ['ctx.tools', 'ctx.quant', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(Quant)
+      await ctx.plugin(QuantReference)
+      await ctx.plugin(ToolQuant)
+    },
+    note:
+      'quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference provider is mounted here so the schema is harvestable, and a deployment without one fails the call loud.',
+  },
   {
     pkg: '@deepseek-ai/dsh-skill-crabcc',
     dir: 'skill-crabcc',

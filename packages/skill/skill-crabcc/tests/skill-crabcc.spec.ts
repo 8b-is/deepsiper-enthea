@@ -48,7 +48,9 @@ async function setupContext(): Promise<Context> {
   return ctx
 }
 
-describe('skill-crabcc', () => {
+const crabccAvailable = await SkillCrabcc.isCrabccAvailable('crabcc', process.cwd())
+
+describe.skipIf(!crabccAvailable)('skill-crabcc', () => {
   let ctx: Context
   let fiber: { dispose(): Promise<void> | void }
   let fixtureRoot: string

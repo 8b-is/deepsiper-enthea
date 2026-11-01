@@ -15,6 +15,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 | Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-tool-quant` | `quant_ternary` | `ctx.tools`, `ctx.quant`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference provider is mounted here so the schema is harvestable, and a deployment without one fails the call loud. |
 | `@deepseek-ai/dsh-skill-crabcc` | `code_search`, `find_references`, `goto_definition` | `ctx.tools (optional)`, `ctx.skills` | `tool/call`, `tool/result`, `skill/list` | - | code_search, goto_definition, and find_references wrap the crabcc CLI: fuzzy symbol lookup, definition location, and reference listing. The tools register only when a tool runtime is present; the skill provider is available whenever the crabcc binary answers --version. |
 | `@deepseek-ai/dsh-tool-ask-user` | `ask_user_question` | `ctx.tools`, `ctx.userQuestions` | `tool/call`, `tool/result after a UI/provider answers the question` | - | ask_user_question pauses the tool call until the active UI provider returns a human answer. |
 | `@deepseek-ai/dsh-tools` | `run_code` | `ctx.tools`, `ctx.codeRuntime (execution time)`, `ctx.systemPrompt` | `tool/call`, `one tool/code-dispatch-start + tool/code-dispatch pair per bridged sub-call`, `tool/result` | - | Owned by the tool registry as a reserved transport outside filterable capability layers under `mode: code` / `mode: both` (see the Code Mode Agent Note). Under `code` it is the registry's only wire contribution; the other visible capabilities are declared in a generated SDK section in the loaded runtime's language, and a program calls them through bindings scheduled under the native concurrency contract (submission-ordered starts and policy; concurrency-safe bodies overlap up to `maxParallelSubCalls`) that re-enter the complete guarded tool pipeline and link each nested execution to this outer result. |
@@ -43,6 +44,44 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-everos` | `everos_memory_add`, `everos_memory_flush`, `everos_memory_search` | `ctx.tools`, `a reachable EverOS server at baseURL` | `tool/call`, `tool/result` | - | everos_memory_add stores conversation messages in a local EverOS server buffer; everos_memory_flush forces boundary extraction for a session; everos_memory_search retrieves episodes, profiles, agent cases, and agent skills for exactly one owner (user_id XOR agent_id). All wire payloads follow the EverOS /api/v2 dialect; bounds the schema cannot express (batch size, top_k, radius) are enforced in the executor. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
+
+<a id="deepseek-aidsh-tool-quant"></a>
+
+## `@deepseek-ai/dsh-tool-quant`
+
+### `quant_ternary`
+
+Quantize a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and report the memory ratio versus FP16. Use for on-device low-bit weight analysis. Backends may be unavailable; the call fails loud when none is registered.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "weights": {
+      "type": "array",
+      "description": "The full-precision weight matrix, row-major (K rows × N columns).",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      }
+    },
+    "group_size": {
+      "type": "integer",
+      "description": "Number of weights per scale group; must divide the weight column count.",
+      "default": 128
+    }
+  },
+  "required": [
+    "weights"
+  ]
+}
+```
+
+Source: [`packages/quant/tool-quant/src/index.ts`](../packages/quant/tool-quant/src/index.ts)
+
+quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference provider is mounted here so the schema is harvestable, and a deployment without one fails the call loud.
 
 <a id="deepseek-aidsh-skill-crabcc"></a>
 

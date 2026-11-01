@@ -10,7 +10,7 @@ kernel. The corpus above all; the evaluations row the verdicts.
 ---
 # Deepsiper Enthea
 
-[![Version](https://img.shields.io/badge/version-0.1.0--rc.7-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-0.3.3-blue.svg)](package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Org](https://img.shields.io/badge/org-8b--is-purple.svg)](https://github.com/8b-is)
 [![Upstream](https://img.shields.io/badge/upstream-deepseek--harness-lightgrey.svg)](https://github.com/deepseek-ai/deepseek-harness)
@@ -28,6 +28,7 @@ English | [中文](README.zh.md)
 ## Fork Enhancements
 
 - **Sovereign Backend**: Native integration with [EntheAI](https://github.com/8b-is) and self-hosted inference nodes with zero external data leakage.
+- **hf-mac / Osaurus seam**: The [`llm-osarous`](packages/llm/llm-osarous/README.md) provider drives [hf-mac](https://github.com/8b-is/hf-mac)'s local Osaurus MLX server on `127.0.0.1:1337`, keeping weights and inference in the native macOS app while the harness owns the agent loop ([wiring](docs/backends/osarous.md)).
 - **ULTRA-LSP in core**: Language-server code intelligence (`goToDefinition`, `findReferences`, `goToImplementation`, `hover`) shipped in the `dsh-base` core bundle with a TypeScript/JavaScript stdio provider, so the `lsp` tool is available in every profile.
 - **Evaluation Plugins**: Pluggable evaluation suites including `tool-eval`, `eval-entheai`, and custom benchmarking metrics.
 - **OpenCode Bridge & JSON-RPC SDK**: Drive evaluation runs and automated agent loops programmatically from OpenCode or custom orchestrators.

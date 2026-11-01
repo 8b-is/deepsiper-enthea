@@ -17,19 +17,30 @@ export const inject = ['invariants']
 
 /** Install this package's invariant checks. */
 const install: InvariantInstaller = async (_ctx, fail) => {
-  // Verify crabcc CLI is available via exit code (no JSON parsing needed).
-  // crabcc --version outputs plain text like "crabcc 6.2.0", not JSON.
+  // crabcc --version prints plain text ("crabcc 6.2.0"), so the check is the
+  // exit code. The CLI is an optional external tool: an absent binary leaves
+  // the skill unavailable rather than violating a harness invariant, while an
+  // installed-but-broken binary still fails loud.
   return new Promise<void>((resolve) => {
     const child = spawn('crabcc', ['--version'], { stdio: ['ignore', 'pipe', 'pipe'] })
     let stderr = ''
+    let settled = false
+    const settle = (failure?: string): void => {
+      if (settled) return
+      settled = true
+      if (failure !== undefined) fail(failure)
+      resolve()
+    }
+    // Attach the failure path before the stdio listeners so a spawn error is
+    // always observed; ENOENT means the optional CLI is simply absent.
+    child.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') settle()
+      else settle(`crabcc CLI probe failed: ${error.message}`)
+    })
     child.stderr.setEncoding('utf8')
-    child.stderr.on('data', (c: string) => { stderr += c })
+    child.stderr.on('data', (chunk: string) => { stderr += chunk })
     child.on('close', (code) => {
-      if (code !== 0) {
-        fail(`crabcc CLI not available (exit code ${code}): ${stderr.trim()}`)
-      } else {
-        resolve()
-      }
+      settle(code === 0 ? undefined : `crabcc CLI not available (exit code ${code}): ${stderr.trim()}`)
     })
   })
 }

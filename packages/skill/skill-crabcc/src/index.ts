@@ -197,9 +197,11 @@ export async function runCrabcc(
     })
     let stdout = ''
     let stderr = ''
+    // Attach the failure path before the stdio listeners so a spawn error is
+    // always observed.
+    child.on('error', (err) => { reject(err) })
     child.stdout.on('data', (chunk: Buffer | string) => { stdout += String(chunk) })
     child.stderr.on('data', (chunk: Buffer | string) => { stderr += String(chunk) })
-    child.on('error', (err) => { reject(err) })
     child.on('close', (code) => {
       if (code !== 0) {
         reject(new Error(`crabcc ${args.join(' ')} failed (exit ${code}): ${stderr.trim()}`))

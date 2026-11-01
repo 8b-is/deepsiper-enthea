@@ -69,6 +69,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   consensusEval: 'eval.md',
   dynamicCordisRunner: 'extensions.md',
   e2b: 'subprocess.md',
+  quant: 'quant.md',
   fs: 'filesystem.md',
   goals: 'goal.md',
   webServer: 'web-server.md',
@@ -506,6 +507,9 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  QuantProvider: 'quant service provider contract is owned by packages/quant/quant/README.md',
+  QuantRequest: 'quant service request union is owned by packages/quant/quant/README.md',
+  QuantResult: 'quant service result union is owned by packages/quant/quant/README.md',
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
   CouncilReport: 'service-local consensus evaluation result is owned by packages/eval/eval-consensus/src/index.ts',
   BeginCommandRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',

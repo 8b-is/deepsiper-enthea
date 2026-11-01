@@ -287,6 +287,7 @@ const subsystemGroups = [
     ['filesystem.md', '文件系统', 'Filesystem'],
     ['lsp.md', 'LSP 导航', 'LSP navigation'],
     ['code-runtime.md', '代码运行时', 'Code runtime'],
+    ['quant.md', '量化', 'Quantization'],
     ['web.md', 'Web 访问', 'Web access'],
     ['skills.md', '技能', 'Skills'],
     ['workflow.md', '工作流', 'Workflows'],
@@ -493,6 +494,15 @@ const sovereignAndEval = mirroredPages([
     sidebar: { root: 'zh-reference', en: 'en-reference' },
     section: { root: '概念', en: 'Concepts' },
     order: 6,
+  },
+  {
+    source: 'docs/backends/osarous.md',
+    route: 'reference/backends/osarous.md',
+    contentLocale: 'en-US',
+    label: { root: 'Osaurus 后端（hf-mac）', en: 'Osaurus Backend (hf-mac)' },
+    sidebar: { root: 'zh-reference', en: 'en-reference' },
+    section: { root: '概念', en: 'Concepts' },
+    order: 7,
   },
   {
     source: 'docs/deployment.md',

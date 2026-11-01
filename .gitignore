@@ -13,9 +13,9 @@ examples/*/.sessions/
 coverage/
 .doc-typecheck-*/
 .node-next-types-*/
-.oxlint-contract-*/
-.oxlintrc.contract-*.json
-oxlint-contract-*.ts
+# Transient Oxlint contract probes stay untracked-but-unignored: Oxlint filters
+# even explicitly passed paths through .gitignore, and the tests clean up in
+# `finally`.
 .humanize/
 tmp/
 .claude/commands/

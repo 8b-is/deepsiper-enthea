@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-01-fork-e2e-gate-drift.md
+2026-11-01-fork-e2e-gate-drift.md: 147cce9bc6d1a6943ab43ad43c4f67b92ab8566c
+2026-11-01-fork-e2e-gate-drift.zh.md: c450bd62d1172d68e5fb8dd0f9682557cead4a53

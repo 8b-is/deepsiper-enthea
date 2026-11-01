@@ -983,6 +983,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'quant',
+    summary: 'The quantization capability seam (`ctx.quant`).',
+    description: 'The quantization capability seam (`ctx.quant`). Owns provider registration/selection and normalized execution of the three operations; exposes no protocol escape hatch.',
+    methods: [
+      {
+        signature: 'registerProvider(provider: QuantProvider): () => void',
+        description: 'Register a provider, atomically reserving its branded id. Any conflict or invalid input publishes nothing and throws `QuantError`; the returned disposer releases the reservation. Disposed with the calling fiber.',
+        parameters: [{ name: 'provider', description: 'the backend to register.' }],
+        returns: 'a synchronous disposer releasing the id reservation.',
+      },
+      {
+        signature: 'execute(request: QuantRequest, signal?: AbortSignal): Promise<QuantResult>',
+        description: 'Select a provider by the request\'s `backend` (or the single registered default) and execute one request. No match throws `QuantError` `QUANT_UNAVAILABLE`.',
+        parameters: [{ name: 'request', description: 'the normalized request.' }, { name: 'signal', description: 'optional cancellation forwarded to the selected provider.' }],
+        returns: 'the normalized, closed-union result.',
+      },
+    ],
+  },
+  {
     key: 'sandbox',
     summary: 'Abstract process-sandbox service.',
     description: 'Abstract process-sandbox service. confine must return enforcing argv or fail closed at wrap or runner-execution time; silent unconfined passthrough is forbidden. Functional probes arbitrate multi-runner chains and may be skipped for a sole candidate, whose own refusal remains the fail-closed end.',
@@ -2757,6 +2776,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CancelOptions {\n    keepInbox?: boolean | undefined;\n}',
   },
   {
+    name: 'CapabilitiesRequest',
+    declaration: 'export interface CapabilitiesRequest {\n    readonly operation: \'capabilities\';\n    readonly backend?: string;\n}',
+  },
+  {
     name: 'ClientResponse',
     declaration: 'export interface ClientResponse {\n    type: \'client-response\';\n    rpcId: RpcId;\n    result: RpcResult<unknown>;\n}',
   },
@@ -3115,6 +3138,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'FsWriteOutcome',
     declaration: 'export interface FsWriteOutcome {\n    operation: \'create\' | \'update\';\n    version: FsVersion;\n    before: string | null;\n    after: string;\n}',
+  },
+  {
+    name: 'GemmRequest',
+    declaration: 'export interface GemmRequest {\n    readonly operation: \'gemm\';\n    readonly activation: QuantMatrix;\n    readonly weights: QuantMatrix;\n    readonly groupSize: number;\n    readonly backend?: string;\n}',
+  },
+  {
+    name: 'GemmResult',
+    declaration: 'export interface GemmResult {\n    readonly kind: \'gemm\';\n    readonly output: QuantMatrix;\n}',
   },
   {
     name: 'GenerateOptions',
@@ -3583,6 +3614,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PruneResult',
     declaration: 'export interface PruneResult {\n    readonly pruned: readonly PrunedEntry[];\n    readonly charsRemoved: number;\n}',
+  },
+  {
+    name: 'QuantCapabilities',
+    declaration: 'export interface QuantCapabilities {\n    readonly kind: \'capabilities\';\n    readonly bitWidths: readonly number[];\n    readonly device: string;\n    readonly throughputClaims: readonly string[];\n}',
+  },
+  {
+    name: 'QuantizedWeights',
+    declaration: 'export interface QuantizedWeights {\n    readonly kind: \'quantized\';\n    readonly codes: readonly number[];\n    readonly scales: readonly number[];\n    readonly groupSize: number;\n    readonly bitsPerWeight: number;\n    readonly memoryRatioVsFp16: number;\n}',
+  },
+  {
+    name: 'QuantizeRequest',
+    declaration: 'export interface QuantizeRequest {\n    readonly operation: \'quantize\';\n    readonly weights: QuantMatrix;\n    readonly groupSize: number;\n    readonly backend?: string;\n}',
+  },
+  {
+    name: 'QuantMatrix',
+    declaration: 'export interface QuantMatrix {\n    readonly shape: readonly [\n        number,\n        number\n    ];\n    readonly data: readonly number[];\n}',
+  },
+  {
+    name: 'QuantOperation',
+    declaration: 'export type QuantOperation = \'quantize\' | \'gemm\' | \'capabilities\';',
+  },
+  {
+    name: 'QuantProvider',
+    declaration: 'export interface QuantProvider {\n    readonly id: QuantProviderId;\n    readonly operations: readonly QuantOperation[];\n    readonly device?: string;\n    execute(request: QuantProviderQuery, signal?: AbortSignal): Promise<QuantResult>;\n}',
+  },
+  {
+    name: 'QuantProviderId',
+    declaration: 'export type QuantProviderId = Branded<\'QuantProviderId\'>;',
+  },
+  {
+    name: 'QuantProviderQuery',
+    declaration: 'export type QuantProviderQuery = QuantRequest;',
+  },
+  {
+    name: 'QuantRequest',
+    declaration: 'export type QuantRequest = QuantizeRequest | GemmRequest | CapabilitiesRequest;',
+  },
+  {
+    name: 'QuantResult',
+    declaration: 'export type QuantResult = QuantizedWeights | GemmResult | QuantCapabilities;',
   },
   {
     name: 'ReadFileLine',

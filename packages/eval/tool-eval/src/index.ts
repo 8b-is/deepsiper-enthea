@@ -154,11 +154,11 @@ export function apply(ctx: Context, config: ToolEvalConfig): void {
         error.name = 'AbortError'
         throw error
       }
-      if (result.exitCode === null) {
-        throw new Error(`grader for benchmark ${JSON.stringify(args.benchmark)} was killed by signal ${result.signal}`)
-      }
       if (result.timedOut) {
         throw new Error(`grader for benchmark ${JSON.stringify(args.benchmark)} timed out after ${result.timeoutMs}ms`)
+      }
+      if (result.exitCode === null) {
+        throw new Error(`grader for benchmark ${JSON.stringify(args.benchmark)} was killed by signal ${result.signal}`)
       }
       return {
         benchmark: args.benchmark,

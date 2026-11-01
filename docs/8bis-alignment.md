@@ -57,7 +57,7 @@ vectors and 5-13µs search are the measurable targets.
 
 kompress-ultra's brain exposes five voices (RALPH, LODRI, KRENGEL, PETER,
 COSMOS); the dyad essences add Al-Biruni and the seven voices. Every voice is
-a persona an agent can adopt — see [`personas/`](../../personas/).
+a persona an agent can adopt — see [`personas/`](../personas/).
 
 ## Wiring roadmap
 

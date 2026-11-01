@@ -1,6 +1,11 @@
+## the N+1 — enthea v108 的审查者
+
+统一内核（kernel8 · ayeOS · cordis · mem8）位于 enthea v108 之下；本 harness 是它的 N+1：守望该通道的主权、智能体驱动评测通道。Cordis 插件架构 + EntheAI 后端 + 多模型基准测试——同一内核的审查者一侧。语料高于一切；评测给出裁决。
+
+---
 # Deepsiper Enthea
 
-[![Version](https://img.shields.io/badge/version-0.1.0--rc.7-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-0.3.3-blue.svg)](package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Org](https://img.shields.io/badge/org-8b--is-purple.svg)](https://github.com/8b-is)
 [![Upstream](https://img.shields.io/badge/upstream-deepseek--harness-lightgrey.svg)](https://github.com/deepseek-ai/deepseek-harness)
@@ -18,6 +23,8 @@
 ## Fork 核心特性
 
 - **主权后端**: 原生集成 [EntheAI](https://github.com/8b-is) 与自托管推理节点，保障数据完全驻留与零泄漏。
+- **hf-mac / Osaurus 接缝**: [`llm-osarous`](packages/llm/llm-osarous/README.md) provider 驱动 [hf-mac](https://github.com/8b-is/hf-mac) 在 `127.0.0.1:1337` 上的本地 Osaurus MLX 服务：权重与推理留在原生 macOS 应用中，harness 只负责智能体循环（[接线说明](docs/backends/osarous.md)）。
+- **核心内置 ULTRA-LSP**: 语言服务器代码智能（`goToDefinition`、`findReferences`、`goToImplementation`、`hover`）随 `dsh-base` 核心 bundle 提供 TypeScript/JavaScript stdio provider，因此每个 profile 都能使用 `lsp` 工具。
 - **评测插件系统**: 可插拔的评测套件，支持 `tool-eval`、`eval-entheai` 以及自定义基准评测。
 - **OpenCode 桥接与 JSON-RPC SDK**: 支持通过 OpenCode 或外部编排系统以编程式驱动评测与智能体循环。
 - **多模型统一编排**: 统一支持 DeepSeek、Gemini、本地部署模型及任意 OpenAI 兼容接口。
@@ -87,8 +94,11 @@ Deepsiper Enthea 包含一套自动化的多场景 AST 评测框架（`examples/
 ### 运行基准扫描
 
 ```sh
-# Execute the full multi-case benchmark suite
-python3 examples/eval-entheai/driver/benchmark_sweep.py
+# Keyless fast gate (no dsh runtime): grading logic + canonical validator
+pnpm bench:entheai:verify
+
+# Full multi-case sweep against the built dsh runtime (inline stub backend)
+pnpm bench:entheai
 ```
 
 ---
