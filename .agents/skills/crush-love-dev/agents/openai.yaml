@@ -1,0 +1,4 @@
+interface:
+  display_name: "crush-love-dev"
+  short_description: "Operate the crush runtime launcher"
+  default_prompt: "Use $crush-love-dev to doctor the crush runtime or run one of its lanes."
