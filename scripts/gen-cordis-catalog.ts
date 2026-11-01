@@ -70,6 +70,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   dynamicCordisRunner: 'extensions.md',
   e2b: 'subprocess.md',
   quant: 'quant.md',
+  voice: 'voice.md',
   fs: 'filesystem.md',
   goals: 'goal.md',
   webServer: 'web-server.md',
@@ -507,6 +508,11 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  VoiceProvider: 'voice service provider contract is owned by packages/interaction/voice/README.md',
+  VoiceSpeakRequest: 'voice service request is owned by packages/interaction/voice/README.md',
+  VoiceSpokenResult: 'voice service result is owned by packages/interaction/voice/README.md',
+  VoiceTranscribeRequest: 'voice service request is owned by packages/interaction/voice/README.md',
+  VoiceTranscribedResult: 'voice service result is owned by packages/interaction/voice/README.md',
   QuantProvider: 'quant service provider contract is owned by packages/quant/quant/README.md',
   QuantRequest: 'quant service request union is owned by packages/quant/quant/README.md',
   QuantResult: 'quant service result union is owned by packages/quant/quant/README.md',

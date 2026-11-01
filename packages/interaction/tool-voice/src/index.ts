@@ -1,13 +1,10 @@
 /**
- * Model-facing `voice_speak` tool: speak bounded text through a local TTS binary.
- * The host binary is the sole speech authority (`say` on macOS, `espeak-ng` on
- * Linux, or any configured command that accepts the text as its last argument).
- * The tool owns the schema, the process call, the bounded result, and the UI
- * presentation; it never synthesizes audio itself.
+ * Model-facing voice tools over `ctx.voice`: `voice_speak` and
+ * `voice_transcribe`. The seam owns provider selection and the host binary; this
+ * consumer owns the schemas, bounds, and presentation.
  * @module @deepseek-ai/dsh-tool-voice
  */
 
-import { spawn } from 'node:child_process'
 import { basename } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -15,201 +12,202 @@ import { defineTool, TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView } from '@deepseek-ai/dsh-tools'
 import { HarnessError } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+import type {} from '@deepseek-ai/dsh-voice'
 
 export const name = 'tool-voice'
-export const inject = ['tools']
+export const inject = ['tools', 'voice']
 
-/** Bounded input length; a security invariant rather than a tunable. */
+/** Bounded spoken-input length. */
 export const DEFAULT_MAX_TEXT_CHARS = 4000
+/** Bounded transcript result length. */
+export const DEFAULT_MAX_TRANSCRIPT_CHARS = 8000
 
-/** Plugin configuration; every field is changeable from `cordis.yml`. */
+/** Plugin configuration. */
 export interface Config {
-  /** TTS binary; defaults to `say` on macOS and `espeak-ng` on Linux. */
-  binary?: string
-  /** Default voice name passed to the binary. */
-  voice?: string
-  /** Default words-per-minute rate passed to the binary. */
-  rate?: number
-  /** Maximum accepted text length (default 4000). */
+  /** Maximum accepted `voice_speak` text (default 4000). */
   maxTextChars?: number
+  /** Maximum emitted `voice_transcribe` text (default 8000). */
+  maxTranscriptChars?: number
 }
 
 export const Config: z<Config> = z.object({
-  binary: z.string(),
-  voice: z.string(),
-  rate: z.number().step(1).min(1).max(1000),
   maxTextChars: z.number().step(1).min(1).default(DEFAULT_MAX_TEXT_CHARS),
+  maxTranscriptChars: z.number().step(1).min(1).default(DEFAULT_MAX_TRANSCRIPT_CHARS),
 })
 
 /** Validated `voice_speak` arguments. */
 export interface VoiceSpeakArgs {
-  /** Text to speak; trimmed and bounded by `maxTextChars`. */
   readonly text: string
-  /** Voice name for this call, overriding the configured default. */
   readonly voice?: string
-  /** Words-per-minute rate for this call, overriding the configured default. */
   readonly rate?: number
 }
 
-/** The compact value returned to the model. */
+/** The compact `voice_speak` value. */
 export interface VoiceSpeakValue {
-  readonly binary: string
+  readonly provider: string
   readonly characters: number
   readonly voice?: string
 }
 
-/** One speech request after configuration defaults are applied. */
-export interface VoiceSpeakRequest {
-  readonly text: string
-  readonly voice?: string
-  readonly rate?: number
+/** Validated `voice_transcribe` arguments. */
+export interface VoiceTranscribeArgs {
+  readonly path: string
+  readonly language?: string
 }
 
-const OUTPUT_SCHEMA = {
+/** The bounded `voice_transcribe` value. */
+export interface VoiceTranscribeValue {
+  readonly provider: string
+  readonly text: string
+  readonly truncated: boolean
+}
+
+const SPEAK_OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    binary: { type: 'string', required: true },
+    provider: { type: 'string', required: true },
     characters: { type: 'integer', required: true },
     voice: { type: 'string' },
   },
 } as const
 
-/**
- * The platform's default TTS binary.
- * @param platform - the Node platform to resolve for.
- * @returns the default binary name.
- * @throws Error when the platform has no default; the deployment must set `binary`.
- */
-export function platformBinary(platform: NodeJS.Platform = process.platform): string {
-  if (platform === 'darwin') return 'say'
-  if (platform === 'linux') return 'espeak-ng'
-  throw new Error(`tool-voice: no default text-to-speech binary for platform ${platform}; set the binary config field`)
-}
+const TRANSCRIBE_OUTPUT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    provider: { type: 'string', required: true },
+    text: { type: 'string', required: true },
+    truncated: { type: 'boolean', required: true },
+  },
+} as const
 
 /**
- * Build the argv for one speech request. `say` and `espeak` take different
- * rate flags; any other command receives the text as its last argument.
- * @param binary - the configured TTS binary.
- * @param request - the resolved speech request.
- * @returns the argument vector, never a shell string.
- */
-export function speakArgs(binary: string, request: VoiceSpeakRequest): string[] {
-  const flags: string[] = []
-  if (request.voice !== undefined) flags.push('-v', request.voice)
-  const base = basename(binary)
-  if (base === 'say') {
-    if (request.rate !== undefined) flags.push('-r', String(request.rate))
-  } else if (base === 'espeak-ng' || base === 'espeak') {
-    if (request.rate !== undefined) flags.push('-s', String(request.rate))
-  }
-  return [...flags, request.text]
-}
-
-/** The subset of `spawn` this tool uses; injectable for tests. */
-export type SpawnFn = typeof spawn
-
-/**
- * Speak one request and resolve when the process exits successfully.
- * @param binary - the TTS binary.
- * @param request - the resolved speech request.
- * @param signal - caller cancellation; the child is killed on abort.
- * @param spawnFn - process launcher, defaulting to Node's `spawn`.
- * @returns a promise settled by the child's exit.
- * @throws Error on spawn failure or a non-zero exit.
- */
-export async function runSpeak(
-  binary: string,
-  request: VoiceSpeakRequest,
-  signal?: AbortSignal,
-  spawnFn: SpawnFn = spawn,
-): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawnFn(binary, speakArgs(binary, request), {
-      stdio: 'ignore',
-      ...signal === undefined ? {} : { signal },
-    })
-    child.on('error', (error: NodeJS.ErrnoException) => {
-      reject(error.code === 'ENOENT'
-        ? new Error(`tool-voice: text-to-speech binary ${JSON.stringify(binary)} was not found`)
-        : error)
-    })
-    child.on('close', (code) => {
-      if (code === 0) resolve()
-      else reject(new Error(`tool-voice: ${binary} exited with status ${String(code)}`))
-    })
-  })
-}
-
-/**
- * Render the spoken summary for the model and UI.
- * @param _args - the raw tool arguments (unused).
- * @param value - the validated summary value.
+ * Render the spoken summary.
+ * @param _args - the raw arguments (unused).
+ * @param value - the validated value.
  * @returns one text block.
  */
 export function renderVoiceSpeak(_args: VoiceSpeakArgs, value: VoiceSpeakValue): ContentBlock[] {
   const voice = value.voice === undefined ? '' : ` in voice ${JSON.stringify(value.voice)}`
-  return [{ type: 'text', text: `Spoke ${value.characters} characters${voice} with ${value.binary}.` }]
+  return [{ type: 'text', text: `Spoke ${value.characters} characters${voice} via ${value.provider}.` }]
+}
+
+/**
+ * Render the transcript, naming truncation when it happened.
+ * @param _args - the raw arguments (unused).
+ * @param value - the bounded value.
+ * @returns one text block.
+ */
+export function renderVoiceTranscribe(_args: VoiceTranscribeArgs, value: VoiceTranscribeValue): ContentBlock[] {
+  return [{ type: 'text', text: value.text }]
 }
 
 /**
  * UI presentation for a pending `voice_speak` call.
- * @param args - the raw tool arguments.
+ * @param args - the raw arguments.
  * @returns the generic call view.
  */
 export function presentVoiceCall(args: VoiceSpeakArgs): GenericCallView {
-  return {
-    card: 'generic',
-    kind: 'other',
-    title: `Speak ${args.text.trim().length} characters`,
-  }
+  return { card: 'generic', kind: 'other', title: `Speak ${args.text.trim().length} characters` }
 }
 
 /**
- * Register the `voice_speak` tool.
- * @param ctx - the plugin context (must inject `tools`).
- * @param config - validated plugin configuration.
+ * UI presentation for a pending `voice_transcribe` call.
+ * @param args - the raw arguments.
+ * @returns the generic call view.
+ */
+export function presentTranscribeCall(args: VoiceTranscribeArgs): GenericCallView {
+  return { card: 'generic', kind: 'other', title: `Transcribe ${basename(args.path)}` }
+}
+
+/**
+ * Bound one transcript to the configured maximum, including the marker.
+ * @param text - the complete transcript.
+ * @param maxChars - the maximum emitted length.
+ * @returns the bounded text and whether it was cut.
+ */
+export function truncateTranscript(text: string, maxChars: number): { text: string; truncated: boolean } {
+  if (text.length <= maxChars) return { text, truncated: false }
+  const suffix = '\n[truncated]'
+  if (maxChars <= suffix.length) return { text: text.slice(0, maxChars), truncated: true }
+  return { text: text.slice(0, maxChars - suffix.length) + suffix, truncated: true }
+}
+
+/** Map an aborted provider call onto the registry's cancellation contract. */
+function rethrowAborted(signal: AbortSignal, error: unknown): never {
+  if (signal.aborted) {
+    const aborted = new HarnessError('tool call aborted', TOOL_ABORTED)
+    aborted.name = 'AbortError'
+    throw aborted
+  }
+  throw error
+}
+
+/**
+ * Register `voice_speak` and `voice_transcribe`.
+ * @param ctx - the plugin context (must inject `tools` and `voice`).
+ * @param config - the resolved configuration.
  */
 export function apply(ctx: Context, config: Config): void {
   const maxTextChars = config.maxTextChars ?? DEFAULT_MAX_TEXT_CHARS
+  const maxTranscriptChars = config.maxTranscriptChars ?? DEFAULT_MAX_TRANSCRIPT_CHARS
+
   ctx.tools.register(defineTool({
     name: 'voice_speak',
-    description: 'Speak text aloud through the host text-to-speech binary. Use for voice output when the session is on a machine with audio.',
+    description: 'Speak text aloud through the session voice provider. Use for voice output when the session is on a machine with audio.',
     parameters: {
       text: { type: 'string', required: true, description: 'Text to speak; trimmed and bounded.' },
-      voice: { type: 'string', description: 'Voice name, overriding the configured default.' },
-      rate: { type: 'integer', description: 'Words per minute, overriding the configured default.' },
+      voice: { type: 'string', description: 'Provider voice name.' },
+      rate: { type: 'integer', description: 'Provider rate (words per minute, or its documented speed knob).' },
     },
-    output: {
-      schema: OUTPUT_SCHEMA,
-      render: renderVoiceSpeak,
-    },
+    output: { schema: SPEAK_OUTPUT_SCHEMA, render: renderVoiceSpeak },
     async execute(args, exec) {
       const text = args.text.trim()
       if (text.length === 0) throw new Error('voice_speak: text must be non-empty')
       if (text.length > maxTextChars) {
         throw new Error(`voice_speak: text is ${text.length} characters, over the ${maxTextChars} limit`)
       }
-      const binary = config.binary ?? platformBinary()
-      const voice = args.voice ?? config.voice
-      const rate = args.rate ?? config.rate
-      const request: VoiceSpeakRequest = {
-        text,
-        ...voice === undefined ? {} : { voice },
-        ...rate === undefined ? {} : { rate },
-      }
       try {
-        await runSpeak(binary, request, exec.signal)
-      } catch (error) {
-        if (exec.signal.aborted) {
-          const aborted = new HarnessError('tool call aborted', TOOL_ABORTED)
-          aborted.name = 'AbortError'
-          throw aborted
+        const result = await ctx.voice.speak({
+          operation: 'speak',
+          text,
+          ...args.voice === undefined ? {} : { voice: args.voice },
+          ...args.rate === undefined ? {} : { rate: args.rate },
+        }, exec.signal)
+        return {
+          provider: result.provider,
+          characters: result.characters,
+          ...result.voice === undefined ? {} : { voice: result.voice },
         }
-        throw error
+      } catch (error) {
+        return rethrowAborted(exec.signal, error)
       }
-      return { binary, characters: text.length, ...voice === undefined ? {} : { voice } }
     },
     presentCall: presentVoiceCall,
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'voice_transcribe',
+    description: 'Transcribe a local audio file to text through the session voice provider. Use when the user points at a recording and asks what it says.',
+    parameters: {
+      path: { type: 'string', required: true, description: 'Audio file path readable by the provider.' },
+      language: { type: 'string', description: 'Language hint, or auto.' },
+    },
+    output: { schema: TRANSCRIBE_OUTPUT_SCHEMA, render: renderVoiceTranscribe },
+    async execute(args, exec) {
+      try {
+        const result = await ctx.voice.transcribe({
+          operation: 'transcribe',
+          audio: { path: args.path },
+          ...args.language === undefined ? {} : { language: args.language },
+        }, exec.signal)
+        const bounded = truncateTranscript(result.text, maxTranscriptChars)
+        return { provider: result.provider, ...bounded }
+      } catch (error) {
+        return rethrowAborted(exec.signal, error)
+      }
+    },
+    presentCall: presentTranscribeCall,
   }))
 }

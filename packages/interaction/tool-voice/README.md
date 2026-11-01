@@ -2,20 +2,14 @@
 
 English | [中文](README.zh.md)
 
-Model-facing `voice_speak` tool: speaks bounded text through the host text-to-speech binary. The tool owns the schema, the process call, the bounded result, and the UI presentation; it never synthesizes audio itself.
+Model-facing voice tools over `ctx.voice`: `voice_speak` and `voice_transcribe`. The seam owns provider selection and the host binary; this consumer owns the schemas, bounds, and presentation.
 
 ## Configuration
 
-```ts
-export interface Config {
-  binary?: string          // default: `say` on macOS, `espeak-ng` on Linux
-  voice?: string           // default voice name for every call
-  rate?: number            // default words per minute
-  maxTextChars?: number    // maximum accepted text length; default 4000
-}
-```
-
-Any command that accepts the text as its last argument works; `say` and `espeak` also receive their native voice and rate flags. A platform with no default binary must set `binary` explicitly.
+| Key | Default | Meaning |
+|---|---|---|
+| `maxTextChars` | `4000` | Maximum accepted `voice_speak` text. |
+| `maxTranscriptChars` | `8000` | Maximum emitted `voice_transcribe` text, including the truncation marker. |
 
 ## Model Experience
 
@@ -23,46 +17,32 @@ Any command that accepts the text as its last argument works; `say` and `espeak`
 
 #### What the model sees
 
-The `voice_speak` name, its description, and three parameters: `text` (required), `voice`, and `rate`. No prompt prose is added. The generated [voice_speak schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-voice) pins the exact schema.
+The `voice_speak` name, its description, and three parameters: `text` (required), `voice`, and `rate`. The generated [voice_speak schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-voice) pins the exact schema.
 
 #### Token effect
 
-The schema is a fixed per-request cost. `text` is the only unbounded field and is capped by `maxTextChars`.
+Fixed schema cost while enabled; the result is one short sentence, never the input text.
 
 #### KV Cache effect
 
-An unchanged tool schema and system prompt keep the prefix cacheable; a different `voice` or `rate` value changes only the tool-call arguments and does not alter the assembled tool definition.
+An unchanged schema and system prompt keep the prefix cacheable; arguments do not alter the assembled tool definition.
 
-### Result
+### `voice_transcribe` tool schema
 
 #### What the model sees
 
-One text block reporting the binary, the spoken character count, and the voice when one was used.
+The `voice_transcribe` name, its description, `path` (required), and `language`. The same [tool catalog section](../../../docs/tool-catalog.md#deepseek-aidsh-tool-voice) records it.
 
 #### Token effect
 
-The result is bounded by construction: one short sentence, never the input text.
+Fixed schema cost; the transcript is bounded by `maxTranscriptChars` and marked `[truncated]` when cut.
 
 #### KV Cache effect
 
-The result appends to the next request and preserves the earlier reusable prefix.
-
-### UI presentation
-
-#### What the model sees
-
-A generic card titled `Speak <n> characters`, derived purely from the arguments.
-
-#### Token effect
-
-No model tokens; presentation is UI-only.
-
-#### KV Cache effect
-
-No effect; the card is not part of the request.
+No effect on the assembled schema; only the result text appends to the next request.
 
 ## Known Limitations and Deferred Work
 
-- **Requires a host TTS binary** — the harness does not bundle audio synthesis; a missing binary fails the call with its name.
-- **No speech-to-text** — this package only speaks; listening needs a separate capability.
-- **No playback control** — the process runs to completion; there is no pause, queue, or ducking surface.
+- **Provider-owned binaries** — the consumer never synthesizes audio; it fails loud when the selected provider has no capability.
+- **File-path transcription** — `voice_transcribe` reads a path the provider can open; byte-payload input is a future seam variant.
+- **No playback control** — there is no pause, queue, or ducking surface.

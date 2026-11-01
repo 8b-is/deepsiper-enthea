@@ -2,67 +2,47 @@
 
 [English](README.md) | 中文
 
-面向模型的 `voice_speak` 工具：通过宿主机的文本转语音二进制朗读有界文本。该工具拥有 schema、进程调用、有界结果与 UI 呈现；它本身不合成音频。
+面向模型的 `ctx.voice` 工具：`voice_speak` 与 `voice_transcribe`。接缝负责 provider 选择与宿主二进制；本消费方负责 schema、边界与呈现。
 
 ## 配置
 
-```ts
-export interface Config {
-  binary?: string          // default: `say` on macOS, `espeak-ng` on Linux
-  voice?: string           // default voice name for every call
-  rate?: number            // default words per minute
-  maxTextChars?: number    // maximum accepted text length; default 4000
-}
-```
-
-任何把文本作为最后一个参数的命令都可以使用；`say` 与 `espeak` 还会收到各自的原生语音与速率参数。没有默认二进制的平台必须显式设置 `binary`。
+| 键 | 默认值 | 含义 |
+|---|---|---|
+| `maxTextChars` | `4000` | `voice_speak` 接受的最大文本长度。 |
+| `maxTranscriptChars` | `8000` | `voice_transcribe` 输出的最大长度（含截断标记）。 |
 
 ## 模型体验
 
-### `voice_speak` 工具 schema
+### `voice_speak` tool schema
 
-#### 模型看到什么
+#### What the model sees
 
-`voice_speak` 名称、描述以及三个参数：`text`（必填）、`voice` 与 `rate`。不添加提示词散文。生成的 [voice_speak schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-voice) 固定了确切 schema。
+`voice_speak` 名称、描述与三个参数：`text`（必填）、`voice`、`rate`。生成的 [voice_speak schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-voice) 固定了确切 schema。
 
-#### Token 影响
+#### Token effect
 
-schema 是每个请求的固定成本。`text` 是唯一无界字段，并受 `maxTextChars` 限制。
+启用时为固定 schema 成本；结果是一句话，绝不包含输入文本。
 
-#### KV 缓存影响
+#### KV Cache effect
 
-未变化的工具 schema 与系统提示词保持前缀可缓存；不同的 `voice` 或 `rate` 只改变工具调用参数，不改变组装后的工具定义。
+未变化的 schema 与系统提示词保持前缀可缓存；参数不改变组装后的工具定义。
 
-### 结果
+### `voice_transcribe` tool schema
 
-#### 模型看到什么
+#### What the model sees
 
-一个文本块，报告二进制、朗读字符数，以及使用时的语音。
+`voice_transcribe` 名称、描述、`path`（必填）与 `language`。同一 [工具目录小节](../../../docs/tool-catalog.md#deepseek-aidsh-tool-voice) 记录了它。
 
-#### Token 影响
+#### Token effect
 
-结果在构造上是有界的：一句话，绝不包含输入文本。
+固定 schema 成本；转写文本受 `maxTranscriptChars` 约束，被截断时标记 `[truncated]`。
 
-#### KV 缓存影响
+#### KV Cache effect
 
-结果追加到下一个请求，并保留更早的可复用前缀。
-
-### UI 呈现
-
-#### 模型看到什么
-
-标题为 `Speak <n> characters` 的通用卡片，纯由参数推导。
-
-#### Token 影响
-
-不产生模型 token；呈现仅限 UI。
-
-#### KV 缓存影响
-
-无影响；卡片不属于请求。
+不影响组装后的 schema；只有结果文本追加到下一个请求。
 
 ## 已知限制与后续工作
 
-- **需要宿主机 TTS 二进制** —— harness 不捆绑音频合成；缺失的二进制会让调用以名称失败。
-- **没有语音转文本** —— 本包只负责朗读；聆听需要独立能力。
-- **没有播放控制** —— 进程运行至完成；没有暂停、队列或闪避表面。
+- **二进制由 provider 拥有** —— 消费方不合成音频；选中的 provider 没有相应能力时明确失败。
+- **按文件路径转写** —— `voice_transcribe` 读取 provider 可打开的文件路径；字节负载输入是未来的接缝变体。
+- **没有播放控制** —— 没有暂停、队列或闪避表面。

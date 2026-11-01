@@ -2062,6 +2062,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'voice',
+    summary: 'The voice capability seam (`ctx.voice`).',
+    description: 'The voice capability seam (`ctx.voice`).',
+    methods: [
+      {
+        signature: 'registerProvider(provider: VoiceProvider): () => void',
+        description: 'Register a provider, atomically reserving its branded id.',
+        parameters: [{ name: 'provider', description: 'the backend to register.' }],
+        returns: 'a synchronous disposer releasing the id reservation.',
+      },
+      {
+        signature: 'speak(request: VoiceSpeakRequest, signal?: AbortSignal): Promise<VoiceSpokenResult>',
+        description: 'Speak through the selected provider.',
+        parameters: [{ name: 'request', description: 'the speak request.' }, { name: 'signal', description: 'optional cancellation.' }],
+        returns: 'the spoken result.',
+      },
+      {
+        signature: 'transcribe(request: VoiceTranscribeRequest, signal?: AbortSignal): Promise<VoiceTranscribedResult>',
+        description: 'Transcribe through the selected provider.',
+        parameters: [{ name: 'request', description: 'the transcribe request.' }, { name: 'signal', description: 'optional cancellation.' }],
+        returns: 'the transcribed result.',
+      },
+    ],
+  },
+  {
     key: 'web',
     summary: 'The web access service.',
     description: 'The web access service. Registered as `ctx.web` (one instance per context).\n\nSelection semantics (resolved at execution time, never order-dependent):\n\n- A configured id that is registered and `available()` → that provider.\n- A configured id not registered → `WEB_PROVIDER_CONFIGURED_MISSING`.\n- A configured id registered but unavailable → `WEB_PROVIDER_CONFIGURED_UNAVAILABLE`.\n- No id configured, exactly one registered usable provider → that provider.\n- No id configured, multiple usable providers → `WEB_PROVIDER_AMBIGUOUS`.\n- No id configured, no usable provider → `WEB_PROVIDER_UNAVAILABLE`.',
@@ -4634,6 +4659,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'UserQuestionProvider',
     declaration: 'export interface UserQuestionProvider {\n    ask(request: AskUserQuestionRequest): Promise<AskUserQuestionAnswer>;\n}',
+  },
+  {
+    name: 'VoiceOperation',
+    declaration: 'export type VoiceOperation = \'speak\' | \'transcribe\';',
+  },
+  {
+    name: 'VoiceProvider',
+    declaration: 'export interface VoiceProvider {\n    readonly id: VoiceProviderId;\n    readonly capabilities: readonly VoiceOperation[];\n    speak?(request: VoiceSpeakRequest, signal?: AbortSignal): Promise<VoiceSpokenResult>;\n    transcribe?(request: VoiceTranscribeRequest, signal?: AbortSignal): Promise<VoiceTranscribedResult>;\n}',
+  },
+  {
+    name: 'VoiceProviderId',
+    declaration: 'export type VoiceProviderId = Branded<\'VoiceProviderId\'>;',
+  },
+  {
+    name: 'VoiceSpeakRequest',
+    declaration: 'export interface VoiceSpeakRequest {\n    readonly operation: \'speak\';\n    readonly text: string;\n    readonly voice?: string;\n    readonly rate?: number;\n    readonly language?: string;\n    readonly backend?: string;\n}',
+  },
+  {
+    name: 'VoiceSpokenResult',
+    declaration: 'export interface VoiceSpokenResult {\n    readonly kind: \'spoken\';\n    readonly provider: string;\n    readonly characters: number;\n    readonly voice?: string;\n}',
+  },
+  {
+    name: 'VoiceTranscribedResult',
+    declaration: 'export interface VoiceTranscribedResult {\n    readonly kind: \'transcribed\';\n    readonly provider: string;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'VoiceTranscribeRequest',
+    declaration: 'export interface VoiceTranscribeRequest {\n    readonly operation: \'transcribe\';\n    readonly audio: {\n        readonly path: string;\n    };\n    readonly language?: string;\n    readonly backend?: string;\n}',
   },
   {
     name: 'WebBootEntry',

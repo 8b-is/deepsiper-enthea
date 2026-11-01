@@ -76,6 +76,7 @@ import * as QuantReference from '@deepseek-ai/dsh-quant-reference'
 import * as ToolQuant from '@deepseek-ai/dsh-tool-quant'
 import * as QuantGaia from '@deepseek-ai/dsh-quant-gaia'
 import * as ToolVoice from '@deepseek-ai/dsh-tool-voice'
+import Voice from '@deepseek-ai/dsh-voice'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -214,9 +215,10 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-voice',
     dir: 'tool-voice',
     source: 'packages/interaction/tool-voice/src/index.ts',
-    requires: ['ctx.tools'],
+    requires: ['ctx.tools', 'ctx.voice'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
+      await ctx.plugin(Voice)
       await ctx.plugin(ToolVoice)
     },
     note:
