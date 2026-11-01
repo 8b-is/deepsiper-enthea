@@ -15,7 +15,8 @@ This table connects model-visible tool names to the plugin package and service s
 
 | Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
-| `@deepseek-ai/dsh-tool-quant` | `quant_ternary` | `ctx.tools`, `ctx.quant`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference provider is mounted here so the schema is harvestable, and a deployment without one fails the call loud. |
+| `@deepseek-ai/dsh-tool-quant` | `quant_ternary` | `ctx.tools`, `ctx.quant`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference and GAIA providers are mounted here so the schema is harvestable; a deployment mounts exactly one and fails the call loud without it. |
+| `@deepseek-ai/dsh-tool-voice` | `voice_speak` | `ctx.tools` | `tool/call`, `tool/result` | - | voice_speak speaks bounded text through the host text-to-speech binary (`say` on macOS, `espeak-ng` on Linux) and reports the binary and character count. The binary is a deployment choice; a host without one fails the call with the binary name. |
 | `@deepseek-ai/dsh-skill-crabcc` | `code_search`, `find_references`, `goto_definition` | `ctx.tools (optional)`, `ctx.skills` | `tool/call`, `tool/result`, `skill/list` | - | code_search, goto_definition, and find_references wrap the crabcc CLI: fuzzy symbol lookup, definition location, and reference listing. The tools register only when a tool runtime is present; the skill provider is available whenever the crabcc binary answers --version. |
 | `@deepseek-ai/dsh-tool-ask-user` | `ask_user_question` | `ctx.tools`, `ctx.userQuestions` | `tool/call`, `tool/result after a UI/provider answers the question` | - | ask_user_question pauses the tool call until the active UI provider returns a human answer. |
 | `@deepseek-ai/dsh-tools` | `run_code` | `ctx.tools`, `ctx.codeRuntime (execution time)`, `ctx.systemPrompt` | `tool/call`, `one tool/code-dispatch-start + tool/code-dispatch pair per bridged sub-call`, `tool/result` | - | Owned by the tool registry as a reserved transport outside filterable capability layers under `mode: code` / `mode: both` (see the Code Mode Agent Note). Under `code` it is the registry's only wire contribution; the other visible capabilities are declared in a generated SDK section in the loaded runtime's language, and a program calls them through bindings scheduled under the native concurrency contract (submission-ordered starts and policy; concurrency-safe bodies overlap up to `maxParallelSubCalls`) that re-enter the complete guarded tool pipeline and link each nested execution to this outer result. |
@@ -81,7 +82,42 @@ Quantize a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-g
 
 Source: [`packages/quant/tool-quant/src/index.ts`](../packages/quant/tool-quant/src/index.ts)
 
-quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference provider is mounted here so the schema is harvestable, and a deployment without one fails the call loud.
+quant_ternary quantizes a weight matrix to BitNet b1.58 ternary codes in {-1, 0, +1} with per-group scales and reports the memory ratio. It is opt-in and needs a registered provider; the reference and GAIA providers are mounted here so the schema is harvestable; a deployment mounts exactly one and fails the call loud without it.
+
+<a id="deepseek-aidsh-tool-voice"></a>
+
+## `@deepseek-ai/dsh-tool-voice`
+
+### `voice_speak`
+
+Speak text aloud through the host text-to-speech binary. Use for voice output when the session is on a machine with audio.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "Text to speak; trimmed and bounded."
+    },
+    "voice": {
+      "type": "string",
+      "description": "Voice name, overriding the configured default."
+    },
+    "rate": {
+      "type": "integer",
+      "description": "Words per minute, overriding the configured default."
+    }
+  },
+  "required": [
+    "text"
+  ]
+}
+```
+
+Source: [`packages/interaction/tool-voice/src/index.ts`](../packages/interaction/tool-voice/src/index.ts)
+
+voice_speak speaks bounded text through the host text-to-speech binary (`say` on macOS, `espeak-ng` on Linux) and reports the binary and character count. The binary is a deployment choice; a host without one fails the call with the binary name.
 
 <a id="deepseek-aidsh-skill-crabcc"></a>
 

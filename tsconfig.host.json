@@ -189,6 +189,7 @@
     { "path": "./packages/skill/crabcc-cache-postgres" },
     { "path": "./packages/skill/tool-skill" },
     { "path": "./packages/interaction/tool-ask-user" },
+    { "path": "./packages/interaction/tool-voice" },
     { "path": "./packages/context/agent-instructions" },
     { "path": "./packages/core/agent-loop" },
     { "path": "./packages/llm/llm-retry" },
@@ -311,6 +312,7 @@
     { "path": "./packages/lsp/tool-lsp" },
     { "path": "./packages/quant/quant" },
     { "path": "./packages/quant/quant-reference" },
+    { "path": "./packages/quant/quant-gaia" },
     { "path": "./packages/quant/tool-quant" },
     { "path": "./packages/util/effect-sync" },
     { "path": "./apps/cli" }
