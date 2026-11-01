@@ -29,7 +29,7 @@ stdio 桥接器在启动子进程前会主动移除环境中名称通常表示�
 dsh web --patch "$PWD/examples/mcp-memory/memorix.cordis.yml"
 ```
 
-请将文件名替换为 `mcp-reference-memory.cordis.yml`、`engram.cordis.yml` 或 `engram-8b.cordis.yml`。该路径可以指向磁盘任意位置的一份复制文件。交付组合不包含任何记忆服务器，因此不传 `--patch` 就会让所列服务器全部保持关闭。
+请将文件名替换为 `mcp-reference-memory.cordis.yml`、`engram.cordis.yml`、`engram-8b.cordis.yml` 或 `smart-tree.cordis.yml`。该路径可以指向磁盘任意位置的一份复制文件。交付组合不包含任何记忆服务器，因此不传 `--patch` 就会让所列服务器全部保持关闭。
 
 如果要跨次运行保留所选配置，请将对应文件中的单个 `insert` patch 合并到用户 patch 层：只对一个 profile 生效则写入 `$DSH_HOME/profiles/<name>/cordis.patch.yml`，对本机所有 profile 生效则写入 `$DSH_HOME/cordis.patch.yml`。不要覆盖已有文件，其中可能已经包含无关的用户 patch。
 

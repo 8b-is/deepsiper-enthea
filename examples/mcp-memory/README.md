@@ -29,7 +29,7 @@ Pass one overlay to DSH:
 dsh web --patch "$PWD/examples/mcp-memory/memorix.cordis.yml"
 ```
 
-Replace the filename with `mcp-reference-memory.cordis.yml`, `engram.cordis.yml`, or `engram-8b.cordis.yml`. The path may point to a copied file anywhere on disk. No memory server is present in the shipped composition, so omitting `--patch` keeps every listed server disabled.
+Replace the filename with `mcp-reference-memory.cordis.yml`, `engram.cordis.yml`, `engram-8b.cordis.yml`, or `smart-tree.cordis.yml`. The path may point to a copied file anywhere on disk. No memory server is present in the shipped composition, so omitting `--patch` keeps every listed server disabled.
 
 To keep the selection across runs, merge the chosen file's single `insert` patch into a user patch layer — `$DSH_HOME/profiles/<name>/cordis.patch.yml` for one profile, or `$DSH_HOME/cordis.patch.yml` for every profile on the machine. Do not copy over an existing file: it may already contain unrelated user patches.
 
