@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-commands-superpowers",
   "description": "Core superpowers slash commands: /brainstorm (Socratic exploration), /sdd (subagent-driven development), /worktree (native git worktree lanes)",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "publishConfig": {
     "access": "public"
   },
