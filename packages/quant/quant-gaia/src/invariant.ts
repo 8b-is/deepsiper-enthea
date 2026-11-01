@@ -15,8 +15,9 @@ export const name = 'quant-gaia-invariant'
 export const inject = ['invariants']
 
 /**
- * No runtime invariant: this provider owns no event/data relation — it is a pure compute provider
- * whose correctness is test-gated, and its id reservation is atomically maintained by the seam.
+ * No runtime invariant: this provider owns no event/data relation — its software lane and its
+ * optional native child are both test-gated, and its id reservation is atomically maintained by
+ * the seam.
  */
 const install: InvariantInstaller = () => {}
 

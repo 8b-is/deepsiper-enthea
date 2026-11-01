@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/quant/quant-gaia/README.md
-README.md: 7b486a6e272138a2e96d0a0b394dbcacc98936cf
-README.zh.md: 8c0db1253e62b0918eaeabb42c78a14a3d577421
+README.md: c9e2103f398e5e275e56640342de48a21393ce43
+README.zh.md: 217d9923cb2089f13293e8beed89dbcf64f6ba1c
