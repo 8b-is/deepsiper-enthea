@@ -273,6 +273,8 @@ export interface LaunchOptions {
    * 127.0.0.1; a non-resolving authority fails before Host trust is exercised.
    */
   remoteAuthority?: string
+  /** Server-only proof for a separate authenticated HTTPS proxy in browser tests. */
+  authenticatedProxy?: { origin: string; tokenFile: string }
   /** Reuse an existing harness home so a second Host can verify user settings across origins. */
   harnessHome?: string
 }
@@ -447,9 +449,12 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // Preserve the composed surface-context choice because a patch replaces
     // the row's complete config.
     { id: 'web-runtime', config: { printUrl: false, surfaceContext } },
-    ...options.remoteAuthority === undefined
+    ...options.remoteAuthority === undefined && options.authenticatedProxy === undefined
       ? []
-      : [{ id: 'connection', config: { trustedHosts: [options.remoteAuthority] } }],
+      : [{ id: 'connection', config: {
+        trustedHosts: options.remoteAuthority === undefined ? [] : [options.remoteAuthority],
+        ...options.authenticatedProxy === undefined ? {} : { authenticatedProxy: options.authenticatedProxy },
+      } }],
     { id: 'settings', config: { dshHome: harnessHome } },
     { id: 'credentials', config: { dshHome: harnessHome } },
     // The shipped directory-picker row is the -auto chooser, which resolves

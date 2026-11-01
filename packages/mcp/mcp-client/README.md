@@ -31,6 +31,16 @@ One plugin instance per MCP server in `cordis.yml`:
 
 The model sees `mcp__github__create_issue`, `mcp__web__search`, … — the same server-qualified shape Claude Code and Codex use. HMR hot-swaps: editing the entry triggers disconnect + reconnect without process restart; an unchanged `serverName` reproduces identical tool names.
 
+## Persistent HOST-local management
+
+Mount `@deepseek-ai/dsh-mcp-client/settings` once in the Host composition beside `settings` and `tools`. It provides `ctx.mcpServers` and registers the live `mcp-servers` settings namespace, initially `{ servers: {} }`. Each dictionary key is the server namespace; entries default to `enabled: false` and use the transport fields below, without `serverName` or `failOnStartupError`. Saved connections default to a 10000 ms total handshake/discovery timeout. The settings provider owns persistence, so restarting the Host restores saved entries without editing presets.
+
+Enabling a server launches its executable on the Host or connects to its HTTP endpoint; it does not run in the agent sandbox. Only save trusted commands and endpoints. DSH does not install or download servers. Stdio inherits the existing scrubbed environment plus explicit `env`; server stderr is suppressed because it may echo credentials. Every `env` and `headers` value is a write-only settings secret. Editors must use path mutation and revision fencing, not replace a configuration reconstructed from a redacted response.
+
+Changes stop the affected connection before replacement and retain unrelated servers. Failures are isolated per server. An unconfirmed shutdown retains its namespace reservation and refuses replacement. `mcpServers.list()` reports actual connection state and registered-tool count with sanitized diagnostics. `mcpServers.test(name)` performs discovery only: active connections are reused, disabled entries get a temporary connection that closes before return, and neither tools nor persistent enablement change. The secured Web API exposes these as `api.mcp.list({})` and `api.mcp.test({ name })`.
+
+The [Host MCP settings decision](../../../.agents/notes/implemented/architecture/2026-11-01-host-mcp-settings.md) explains process ownership, discovery, and credential handling.
+
 ## Config
 
 | Field | Transport | Required | Description |
@@ -44,6 +54,8 @@ The model sees `mcp__github__create_issue`, `mcp__web__search`, … — the same
 | `url` | http | yes | MCP server URL |
 | `headers` | http | no | Extra headers (e.g. auth tokens) |
 | `toolCallTimeoutMs` | both | no | Timeout per `callTool` invocation (default 60000) |
+| `connectTimeoutMs` | both | no | Total initial handshake/discovery deadline in ms; explicit composition instances inherit SDK request timeouts when omitted |
+| `smartTreeMemory` | both | no | Smart Tree's raw `memory` tool: `off`, `read-only`, or `read-write`; omission leaves generic MCP behavior unchanged |
 | `failOnStartupError` | both | no | Reject plugin activation when initial connection or tool synchronization fails (default `false`) |
 | `reconnect.enabled` | both | no | Reconnect automatically after a lost connection (default `true`) |
 | `reconnect.initialDelayMs` | both | no | First reconnect delay in ms; doubles per consecutive failed attempt (default 500) |
@@ -84,7 +96,7 @@ Every MCP tool has two names: the raw MCP name (sent on the wire in `tools/call`
 
 #### What the model sees
 
-After initial discovery succeeds, each advertised MCP tool appears as a native tool named `mcp__<serverName>__<rawName>` (or its deterministic normalized form), with the server-provided description and input schema. A successful re-sync — including the one after an automatic reconnect — replaces the generation; plugin disposal or an exhausted reconnect budget removes it.
+After initial discovery succeeds, each advertised MCP tool appears as a native tool named `mcp__<serverName>__<rawName>` (or its deterministic normalized form), with the server-provided description and input schema. A successful re-sync — including the one after an automatic reconnect — replaces the generation; plugin disposal or an exhausted reconnect budget removes it. For an explicitly configured Smart Tree server, `off` omits the raw `memory` tool; `read-only` narrows its schema and independently rejects every operation except the literal `find` before dispatch. `read-write` retains the server schema. Changing this policy changes the registered schema prefix. Other tools remain unrestricted, recall may update access metadata, and no chat messages are saved automatically. This option does not provide a MEM16 adapter.
 
 #### Token effect
 
@@ -111,7 +123,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 ## Known Limitations and Deferred Work
 
 - **Tools are the only bridged MCP capability** — Resources and Prompts have no harness consumer and are deferred.
-- **Startup timeout is inherited from the MCP SDK** — DSH does not yet expose a connection/discovery timeout. Each initialize or paginated `tools/list` request uses the SDK's 60-second default, so an unresponsive server or cursor chain can delay both activation and teardown while the initial synchronization settles.
+- **Discovery is not tool execution** — a successful check confirms handshake and advertised names, not whether the tools will work. Active connections that are reconnecting or failed must recover or be disabled before a fresh temporary check.
 - **Reconnect triggers on transport close** — a crashed stdio child fires it; Streamable HTTP failures surface per request and through the SDK transport's own SSE-stream recovery, so an unreachable HTTP server is retried per call rather than respawned by the supervisor.
 - **Image is the only durable rich-result bridge** — PNG, JPEG, WebP, and GIF can enter Native context after exact capability proof. Audio and embedded-resource payloads remain execution-local with explicit diagnostics, while resource links preserve only their name and URI as text.
 - **Unsupported MCP output schemas are not enforced** — `structuredContent` falls back to `JsonValue` when the advertised schema uses vocabulary outside the harness subset.

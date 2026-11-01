@@ -271,6 +271,14 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
         return { rpcId: request.rpcId, result: { ok: true, value: {} } }
       },
     },
+    mcp: {
+      list(request) {
+        return Promise.resolve({ rpcId: request.rpcId, result: { ok: true, value: { servers: [] } } })
+      },
+      test(request) {
+        return Promise.resolve({ rpcId: request.rpcId, result: { ok: true, value: { toolCount: 0, tools: [] } } })
+      },
+    },
     llm: {
       async providers(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { providers: [] } } }

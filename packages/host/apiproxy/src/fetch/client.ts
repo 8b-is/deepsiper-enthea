@@ -61,6 +61,7 @@ import {
   credentialsDescribeValueSchema, credentialsSetValueSchema, credentialsUnsetValueSchema,
 } from '../api/credentials.schema.ts'
 import { llmDiscoverModelsValueSchema, llmModelsValueSchema, llmProvidersValueSchema } from '../api/llm.schema.ts'
+import { mcpListValueSchema, mcpTestValueSchema } from '../api/mcp.schema.ts'
 import {
   subagentHistoryValueSchema,
   subagentInterruptValueSchema,
@@ -156,6 +157,10 @@ export interface IApiClient {
     set(payload: RequestPayload<'credentials.set'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'credentials.set'>>>
     unset(payload: RequestPayload<'credentials.unset'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'credentials.unset'>>>
   }
+  mcp: {
+    list(payload: RequestPayload<'mcp.list'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'mcp.list'>>>
+    test(payload: RequestPayload<'mcp.test'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'mcp.test'>>>
+  }
   llm: {
     providers(payload: RequestPayload<'llm.providers'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.providers'>>>
     models(payload: RequestPayload<'llm.models'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.models'>>>
@@ -219,6 +224,8 @@ const UNARY_VALUE_SCHEMAS: { [K in keyof RpcMethodMap]: z.ZodType<Wire<ResponseV
   'credentials.describe': credentialsDescribeValueSchema,
   'credentials.set': credentialsSetValueSchema,
   'credentials.unset': credentialsUnsetValueSchema,
+  'mcp.list': mcpListValueSchema,
+  'mcp.test': mcpTestValueSchema,
   'llm.providers': llmProvidersValueSchema,
   'llm.models': llmModelsValueSchema,
   'llm.discoverModels': llmDiscoverModelsValueSchema,
@@ -492,6 +499,11 @@ export abstract class AbstractApiClient implements IApiClient {
     describe: (payload, signal) => this.callUnary('credentials.describe', payload, signal),
     set: (payload, signal) => this.callUnary('credentials.set', payload, signal),
     unset: (payload, signal) => this.callUnary('credentials.unset', payload, signal),
+  }
+
+  readonly mcp: IApiClient['mcp'] = {
+    list: (payload, signal) => this.callUnary('mcp.list', payload, signal),
+    test: (payload, signal) => this.callUnary('mcp.test', payload, signal),
   }
 
   readonly llm: IApiClient['llm'] = {

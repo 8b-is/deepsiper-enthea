@@ -137,6 +137,20 @@ describe('reconnect supervisor', () => {
     ctx = await mountRegistry()
   })
 
+  it('reports connecting, connected, reconnecting and exhausted states without raw errors', async () => {
+    const policy = resolveReconnectPolicy({ initialDelayMs: 2, maxDelayMs: 4, maxAttempts: 1 }, 'reconnect')
+    const handle = startConnection(ctx, stdioConfig(), policy)
+    expect(handle.status()).toEqual({ state: 'connecting', toolCount: 0 })
+    await handle.ready
+    expect(handle.status()).toEqual({ state: 'connected', toolCount: 1 })
+    mockConnect.mockRejectedValue(new Error('Bearer private-value'))
+    instances[0]!.onclose?.()
+    expect(handle.status()).toEqual({ state: 'reconnecting', toolCount: 1 })
+    await vi.waitFor(() => { expect(handle.status()).toMatchObject({ state: 'error', toolCount: 0 }) })
+    expect(JSON.stringify(handle.status())).not.toContain('private-value')
+    await handle.dispose()
+  })
+
   it('reconnects after a transport close, re-syncs tools through the new generation, and serves calls', async () => {
     const { warns, infos } = captureLogs(ctx)
     await apply(ctx, stdioConfig({ initialDelayMs: 5, maxDelayMs: 40, maxAttempts: 5 }))
@@ -190,7 +204,8 @@ describe('reconnect supervisor', () => {
     expect(ctx.tools.get('mcp__srv__remote')).toBeUndefined()
     // Initial connect + exactly maxAttempts reconnect attempts.
     expect(mockConnect).toHaveBeenCalledTimes(3)
-    expect(warns.some(line => line.includes('connection attempt failed: Error: server gone'))).toBe(true)
+    expect(warns.some(line => line.includes('connection attempt failed: request failed; check server availability and saved configuration'))).toBe(true)
+    expect(warns.join('\n')).not.toContain('server gone')
     expect(warns.some(line => line.includes('connection failed; retrying in 4ms (attempt 2/2)'))).toBe(true)
     await sleep(30)
     expect(mockConnect).toHaveBeenCalledTimes(3)
@@ -287,7 +302,8 @@ describe('reconnect supervisor', () => {
       const disposing = handle.dispose()
       await vi.advanceTimersByTimeAsync(5_000)
       gate.resolve()
-      await disposing
+      await expect(disposing).rejects.toThrow('shutdown is incomplete; replacement refused')
+      expect(() => startConnection(ctx, stdioConfig(), resolveReconnectPolicy(undefined, 'reconnect'))).toThrow('already in use')
 
       expect(mockListTools).not.toHaveBeenCalled()
       expect(errors.some(line => line.includes('server shutdown may be incomplete'))).toBe(true)

@@ -28,6 +28,7 @@ function scriptedApi(overrides: {
   settings?: Partial<ApiProxy['settings']>
   credentials?: Partial<ApiProxy['credentials']>
   llm?: Partial<ApiProxy['llm']>
+  mcp?: Partial<ApiProxy['mcp']>
   respond?: ApiProxy['respond']
 } = {}): ApiProxy {
   async function *empty<F>(): AsyncGenerator<RpcRequest<F>> { /* no frames */ }
@@ -122,6 +123,7 @@ function scriptedApi(overrides: {
       unset: err,
       ...overrides.credentials,
     },
+    mcp: { list: r => ok(r, { servers: [] }), test: err, ...overrides.mcp },
     llm: {
       providers: r => ok(r, { providers: [] }),
       models: r => ok(r, { groups: [], failures: [] }),
@@ -803,6 +805,22 @@ describe('config unary surface', () => {
       api: 'openai-completions',
       apiKey: 'probe-key',
     })
+  })
+
+  it('round-trips MCP status and discovery and rejects malformed server names', async () => {
+    const seen: { method: string; payload: unknown }[] = []
+    const record = recorderInto(seen)
+    const api = scriptedApi({
+      mcp: {
+        list: record('mcp.list', r => ok(r, { servers: [{ name: 'local', state: 'disabled' as const, toolCount: 0 }] })),
+        test: record('mcp.test', r => ok(r, { toolCount: 1, tools: ['inspect'] })),
+      },
+    })
+    const c = client(api)
+    expect((await c.mcp.list({})).result).toEqual({ ok: true, value: { servers: [{ name: 'local', state: 'disabled', toolCount: 0 }] } })
+    expect((await c.mcp.test({ name: 'local' })).result).toEqual({ ok: true, value: { toolCount: 1, tools: ['inspect'] } })
+    expect((await c.mcp.test({ name: 'invalid name' })).result).toMatchObject({ ok: false, error: { code: 'bad-request' } })
+    expect(seen).toEqual([{ method: 'mcp.list', payload: {} }, { method: 'mcp.test', payload: { name: 'local' } }])
   })
 
   it('rejects an invalid credential reference name at the carrier boundary', async () => {

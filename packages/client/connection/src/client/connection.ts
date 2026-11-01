@@ -1,4 +1,5 @@
 import type { HostDescription, IApiClient, HostFrame, MuxFrame, RpcRequest } from './api.ts'
+import type { ConnectionAccess } from '../access.ts'
 
 /** Reconnect/backoff tunables (deployment-varying — no hardcoded tunables; these become the
  *  future `ctx.connection` plugin's Config). All fields optional; defaults below. */
@@ -46,6 +47,8 @@ export interface ConnectionSinks {
   onHostEnvelope?: (envelope: RpcRequest<HostFrame>) => void
   /** After each connection generation is established (both streams open + describe succeeded), first connect included. */
   onConnected?: (description: HostDescription) => void
+  /** Request permissions published before connected callbacks, retracted on generation loss. */
+  onAccess?: (access: ConnectionAccess | undefined) => void
   /** Coarse state transitions (deduplicated: fires only on change). The initial pre-connect
    *  span reports nothing — the UI treats "no state yet" as connecting, not as an outage. */
   onStateChange?: (state: ConnectionState) => void
@@ -70,6 +73,7 @@ export class ConnectionController {
     private readonly api: IApiClient,
     private readonly sinks: ConnectionSinks = {},
     config: ConnectionConfig = {},
+    private readonly readAccess?: (signal: AbortSignal) => Promise<ConnectionAccess>,
   ) {
     this.config = { ...CONNECTION_DEFAULTS, ...config }
   }
@@ -86,6 +90,7 @@ export class ConnectionController {
     this.running = false
     this.current?.abort()
     this.current = null
+    this.callSink(() => { this.sinks.onAccess?.(undefined) })
   }
 
   private backoffDelay(attempt: number): number {
@@ -122,7 +127,10 @@ export class ConnectionController {
 
       const failed = new Promise<void>((resolve) => {
         const settle = (): void => {
-          if (gen === this.generation && !ac.signal.aborted) ac.abort()
+          if (gen === this.generation && !ac.signal.aborted) {
+            ac.abort()
+            this.callSink(() => { this.sinks.onAccess?.(undefined) })
+          }
           resolve()
         }
         void this.pumpStream(this.api.events.mux({}, ac.signal, muxOpened), this.sinks.onMuxEnvelope, settle)
@@ -136,16 +144,18 @@ export class ConnectionController {
         // subscribed baseline. The timeout guards against a carrier that never fires onOpen
         // (see ConnectionConfig.streamOpenTimeoutMs).
         const timeout = new AbortController()
-        const [description] = await Promise.all([
+        const [description, access] = await Promise.all([
           this.api.host.describe({}),
+          this.readAccess?.(ac.signal),
           Promise.race([streamsOpen, sleep(this.config.streamOpenTimeoutMs, timeout.signal)]),
-        ])
-        timeout.abort()
+        ]).finally(() => { timeout.abort() })
         const descriptionResult = description.result
         if (!descriptionResult.ok) {
           throw new Error(`host.describe failed: ${descriptionResult.error.code}: ${descriptionResult.error.message}`)
         }
         if (ac.signal.aborted) throw new Error('generation aborted during readiness handshake')
+        this.callSink(() => { this.sinks.onAccess?.(access) })
+        if (!this.isGenerationActive(ac)) return
         this.attempt = 0
         this.emitState('connected')
         // A state sink may synchronously stop this controller. Do not publish

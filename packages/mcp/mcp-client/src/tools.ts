@@ -17,6 +17,8 @@ import { isDeepStrictEqual } from 'node:util'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
+import { enforceMemoryPolicy, memoryParameters } from './memory-policy.ts'
+import type { SmartTreeMemoryPolicy } from './memory-policy.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { isImageAdmissionError } from '@deepseek-ai/dsh-attachment'
 import type { AttachmentStore, ImageAttachmentRef, ImageMediaType, SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
@@ -31,6 +33,10 @@ export interface ToolBridgeOptions {
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+  /** Total initial-discovery deadline, when owned by a connection attempt. */
+  discoverySignal?: AbortSignal
+  /** Optional policy for Smart Tree's exact raw memory tool. */
+  smartTreeMemory?: SmartTreeMemoryPolicy
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -69,10 +75,12 @@ const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 
 /** List without mutating the SDK's per-page output-validator cache. */
-function listToolsUncached(client: Client, cursor?: string) {
+function listToolsUncached(client: Client, cursor?: string, signal?: AbortSignal) {
+  signal?.throwIfAborted()
   return client.request(
     { method: 'tools/list', ...cursor === undefined ? {} : { params: { cursor } } },
     ListToolsResultSchema,
+    signal === undefined ? undefined : { signal },
   )
 }
 
@@ -150,8 +158,9 @@ export async function syncTools(
   const definitions = new Map<string, ToolDefinition>()
   let cursor: string | undefined
   do {
-    const response = await listToolsUncached(client, cursor)
+    const response = await listToolsUncached(client, cursor, opts.discoverySignal)
     for (const tool of response.tools) {
+      if (tool.name === 'memory' && opts.smartTreeMemory === 'off') continue
       const publicName = publicToolName(opts.serverName, tool.name)
       if (definitions.has(publicName)) {
         throw new Error(
@@ -185,7 +194,7 @@ export async function syncTools(
     // registration occupies this server's namespace. Roll back so the model
     // sees either the full generation or none of it — never a partial set.
     for (const dispose of disposers.values()) dispose()
-    ctx.logger.error(`mcp-client(${opts.serverName}): tool registration failed, no tools registered: ${String(error)}`)
+    ctx.logger.error(`mcp-client(${opts.serverName}): tool registration failed, no tools registered`)
     if (opts.registrationFailure === 'throw') throw error
     return new Map()
   }
@@ -256,7 +265,7 @@ function createDefinition(
   return {
     name: publicName,
     description,
-    parameters,
+    parameters: memoryParameters(rawName, parameters, opts.smartTreeMemory),
     output: createOutput(rawName, structuredSchema),
     execute: createExecutor(client, ctx, rawName, taskRequired, opts, projections),
     finalizeContent(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>) {
@@ -317,7 +326,8 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const result = await callToolUncached(client, rawName, argsObj, exec, opts)
+    const permittedArgs = enforceMemoryPolicy(rawName, argsObj, opts.smartTreeMemory)
+    const result = await callToolUncached(client, rawName, permittedArgs, exec, opts)
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {

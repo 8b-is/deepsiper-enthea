@@ -74,6 +74,7 @@ import type {} from '@deepseek-ai/dsh-commands'
 // rebuild the api-remotes cycle this direction exists to avoid.
 import type {} from '@deepseek-ai/dsh-cordis-host-runner/types'
 import type {} from '@deepseek-ai/dsh-skill'
+import type {} from '@deepseek-ai/dsh-mcp-client/settings'
 // The settings/credentials seams: brand guards run at this wire boundary; the
 // service reads stay optional (`ctx.get`) so a composition without either
 // provider still serves every other domain.
@@ -3304,6 +3305,22 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
     },
 
+    mcp: {
+      list(request) {
+        const manager = ctx.get('mcpServers')
+        if (manager === undefined) return Promise.resolve(err(request, { code: 'internal', message: 'MCP settings manager is not mounted in this Host', details: {} }))
+        return Promise.resolve(ok(request, { servers: manager.list() }))
+      },
+      test: async (request, signal) => {
+        const manager = ctx.get('mcpServers')
+        if (manager === undefined) return err(request, { code: 'internal', message: 'MCP settings manager is not mounted in this Host', details: {} })
+        try {
+          return ok(request, await manager.test(request.payload.name, signal))
+        } catch {
+          return err(request, { code: 'internal', message: 'MCP discovery failed or timed out. Check the saved configuration and server availability.', details: {} })
+        }
+      },
+    },
     llm: {
       providers(request) {
         const registered = ctx.llm.listProviders()

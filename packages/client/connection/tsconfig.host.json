@@ -6,6 +6,8 @@
     "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
   },
   "files": [
+    "src/access.ts",
+    "src/authenticated-proxy.ts",
     "src/api-path.ts",
     "src/api-request-trust.ts",
     "src/http-bridge.ts",

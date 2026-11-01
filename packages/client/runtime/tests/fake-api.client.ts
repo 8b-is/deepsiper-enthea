@@ -248,6 +248,11 @@ export class FakeApiClient implements IApiClient {
     list: (payload: unknown) => this.record('skill.list', payload, this.onSkillList(payload)),
   }
 
+  readonly mcp: IApiClient['mcp'] = {
+    list: (payload: unknown) => this.record('mcp.list', payload, Promise.resolve(ok({ servers: [] }))),
+    test: (payload: unknown) => this.record('mcp.test', payload, Promise.resolve(ok({ toolCount: 0, tools: [] }))),
+  }
+
   readonly goals: IApiClient['goals'] = {
     create: payload => this.record('goal.create', payload, Promise.resolve(ok({ ref: { id: 'fake-goal' as never, revision: 1 } }))),
     edit: payload => this.record('goal.edit', payload, Promise.resolve(ok({ ref: { id: 'fake-goal' as never, revision: 1 } }))),

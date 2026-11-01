@@ -24,6 +24,7 @@ import type { RpcRequest, RpcResponse } from '../src/api/rpc.ts'
 import { RpcId } from '../src/api/rpc.ts'
 import { AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-agent-default-model'
 import { createApiProxy } from '../src/api-proxy.ts'
+import McpServers from '@deepseek-ai/dsh-mcp-client/src/settings.ts'
 
 const DEFAULTS = { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' }
 
@@ -774,5 +775,36 @@ describe('llm.discoverModels', () => {
 
     expect(error.code).toBe('model-discovery-failed')
     expect(error.message).toContain('no model discovery is registered')
+  })
+})
+
+describe('MCP configuration API', () => {
+  it('reports an absent manager without affecting other domains', async () => {
+    const ctx = await harness()
+    try {
+      const api = createApiProxy(ctx, DEFAULTS)
+      expect(expectErr(await api.mcp.list(request({}))).message).toContain('not mounted')
+      expect(expectErr(await api.mcp.test(request({ name: 'local' }))).message).toContain('not mounted')
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('returns runtime status and discovery, and never returns raw service errors', async () => {
+    const ctx = await harness()
+    try {
+      await ctx.plugin(McpServers)
+      const api = createApiProxy(ctx, DEFAULTS)
+      expect(expectOk(await api.mcp.list(request({})))).toEqual({ servers: [] })
+      await ctx.settings.replace(settingsNamespace('mcp-servers'), { servers: { local: { command: 'server', env: { API_KEY: 'private-key' } } } })
+      await vi.waitFor(() =>{  expect(ctx.mcpServers.list()).toHaveLength(1) })
+      expect(expectOk(await api.mcp.list(request({})))).toEqual({ servers: [{ name: 'local', state: 'disabled', toolCount: 0 }] })
+      const test = vi.spyOn(ctx.mcpServers, 'test').mockResolvedValue({ toolCount: 1, tools: ['inspect'] })
+      const signal = new AbortController().signal
+      expect(expectOk(await api.mcp.test(request({ name: 'local' }), signal))).toEqual({ toolCount: 1, tools: ['inspect'] })
+      expect(test).toHaveBeenCalledWith('local', signal)
+      test.mockRejectedValue(new Error('server echoed private-key'))
+      const error = expectErr(await api.mcp.test(request({ name: 'local' })))
+      expect(error.message).toContain('MCP discovery failed')
+      expect(JSON.stringify(error)).not.toContain('private-key')
+    } finally { await ctx.fiber.dispose() }
   })
 })

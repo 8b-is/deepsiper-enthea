@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`packages/mcp/mcp-client/src/connection.ts` 拥有一个逐实例的连接监督器；`apply()` 收缩为配置解析加两个副作用（`serverName` 预留和监督器的生命周期）。监督器负责管理 client/transport 代、活跃的工具注册以及重连循环。
+`packages/mcp/mcp-client/src/connection.ts` 拥有逐实例的连接监督器；`apply()` 解析配置并注册其生命周期副作用。监督器负责 `serverName` 预留、client/transport 代、活跃工具注册和重连循环。[保存的 Host 连接管理器](../architecture/2026-11-01-host-mcp-settings.md)复用同一个监督器。
 
 **触发条件。** 监督器在每一代上挂载 `client.onclose`。SDK 在 stdio 子进程退出时触发该回调，因此崩溃无需轮询即可感知。`StreamableHTTPClientTransport` 仅在主动关闭时触发 `onclose`——它内部拥有自己的 SSE（Server-Sent Events）流恢复机制，并将请求失败以逐调用方式暴露——因此 HTTP 服务器实际上不在监督器的重启范围内；包 README 记录了该限制。
 

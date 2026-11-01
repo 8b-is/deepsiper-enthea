@@ -31,6 +31,53 @@ function deferred<T>() {
 }
 
 describe('WelcomeNoticeStore', () => {
+  it('loads authoritative state on grant without copying a local acknowledgement', async () => {
+    const describe = vi.fn().mockResolvedValue(ok({
+      writable: true, hasDocument: false, namespaces: [namespace()],
+    }))
+    const mutate = vi.fn().mockResolvedValue(ok(namespace(WELCOME_NOTICE_VERSION)))
+    const controller = new WelcomeNoticeStore({ settings: { describe, mutate } } as never, 'memory')
+    await controller.acknowledge()
+    expect(controller.store.getSnapshot().acknowledged).toBe(true)
+    await controller.setAccess(true)
+    expect(controller.store.getSnapshot().acknowledged).toBe(false)
+    expect(mutate).not.toHaveBeenCalled()
+    await controller.acknowledge()
+    expect(mutate).toHaveBeenCalledOnce()
+    await controller.setAccess(true)
+    expect(describe).toHaveBeenCalledOnce()
+    controller.dispose()
+    await controller.setAccess(false)
+    await controller.load()
+    await expect(controller.acknowledge()).resolves.toBe(false)
+  })
+
+  it('suppresses a late acknowledgement and new Host writes after revocation', async () => {
+    const pending = deferred<ReturnType<typeof ok>>()
+    const mutate = vi.fn().mockReturnValue(pending.promise)
+    const controller = new WelcomeNoticeStore({ settings: { mutate } } as never)
+    const write = controller.acknowledge()
+    await controller.setAccess(false)
+    const revoked = controller.store.getSnapshot()
+    pending.resolve(ok(namespace(WELCOME_NOTICE_VERSION)))
+    await expect(write).resolves.toBe(false)
+    expect(controller.store.getSnapshot()).toBe(revoked)
+    await controller.acknowledge()
+    expect(mutate).toHaveBeenCalledOnce()
+    controller.dispose()
+  })
+
+  it('does not publish a pending Host read after disposal', async () => {
+    const pending = deferred<ReturnType<typeof ok>>()
+    const controller = new WelcomeNoticeStore({ settings: { describe: () => pending.promise } } as never)
+    const read = controller.load()
+    controller.dispose()
+    const disposed = controller.store.getSnapshot()
+    pending.resolve(ok({ writable: true, hasDocument: false, namespaces: [namespace(WELCOME_NOTICE_VERSION)] }))
+    await read
+    expect(controller.store.getSnapshot()).toBe(disposed)
+  })
+
   it('acknowledges in memory without calling loopback-only settings APIs', async () => {
     const describe = vi.fn()
     const mutate = vi.fn()

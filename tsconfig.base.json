@@ -183,6 +183,7 @@
       "@deepseek-ai/dsh-client-schema-form/invariant": ["./packages/client/schema-form/src/invariant.ts"],
       "@deepseek-ai/dsh-client-web-react": ["./packages/client/web-react/src"],
       "@deepseek-ai/dsh-client-connection": ["./packages/client/connection/src"],
+      "@deepseek-ai/dsh-mcp-client/settings": ["./packages/mcp/mcp-client/src/settings.ts"],
       "@deepseek-ai/dsh-api-remotes": ["./packages/api/remotes/src"],
       "@deepseek-ai/dsh-api-remotes/client": ["./packages/api/remotes/src/client/index.ts"],
       "@deepseek-ai/dsh-client-hmr": ["./packages/client/hmr/src"],

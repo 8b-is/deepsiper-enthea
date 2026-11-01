@@ -32,18 +32,47 @@ export class WelcomeNoticeStore {
   })
 
   private generation = 0
+  private disposed = false
+  private accessGeneration = 0
 
   /**
    * @param api - settings wire face used for durable reads and writes.
-   * @param persistence - remote browsers use memory because settings is loopback-only.
+   * @param persistence - initial request permission; unknown or denied settings access uses memory.
    */
   constructor(
     private readonly api: Pick<IApiClient, 'settings'>,
-    private readonly persistence: 'host' | 'memory' = 'host',
+    private persistence: 'host' | 'memory' = 'host',
   ) {}
+
+  /**
+   * Switch persistence after permission discovery, discarding the previous mode's acknowledgement.
+   * @param allowed - current request permission for Host settings.
+   * @returns completion of fresh Host state on a grant; never copies a local acknowledgement.
+   */
+  setAccess(allowed: boolean): Promise<void> {
+    const persistence = allowed ? 'host' : 'memory'
+    if (this.disposed || this.persistence === persistence) return Promise.resolve()
+    this.persistence = persistence
+    this.accessGeneration += 1
+    this.generation += 1
+    this.store.update((state) => {
+      state.status = 'idle'
+      state.acknowledged = false
+      state.error = null
+    })
+    return this.load()
+  }
+
+  /** Suppress pending responses and reject new work after the owning plugin unloads. */
+  dispose(): void {
+    this.disposed = true
+    this.accessGeneration += 1
+    this.generation += 1
+  }
 
   /** Load the acknowledgement from Host settings or initialize process-local state. */
   async load(): Promise<void> {
+    if (this.disposed) return
     const generation = ++this.generation
     if (this.persistence === 'memory') {
       this.store.update((state) => { state.status = 'ready'; state.error = null })
@@ -74,10 +103,12 @@ export class WelcomeNoticeStore {
   }
 
   /**
-   * Persist this copy version, or advance only this process for a remote browser.
+   * Persist this copy version, or advance only this process when Host settings access is unavailable.
    * @returns true when the selected persistence mode accepted the acknowledgement.
    */
   async acknowledge(): Promise<boolean> {
+    if (this.disposed) return false
+    const accessGeneration = this.accessGeneration
     const generation = ++this.generation
     if (this.persistence === 'memory') {
       this.store.update((state) => {
@@ -94,6 +125,7 @@ export class WelcomeNoticeStore {
         ops: [{ op: 'set', path: [WELCOME_NOTICE_ACK_FIELD], value: WELCOME_NOTICE_VERSION }],
       })
       if (!response.result.ok) throw new Error(response.result.error.message)
+      if (accessGeneration !== this.accessGeneration) return false
       if (generation === this.generation) {
         this.store.update((state) => {
           state.status = 'ready'

@@ -10,7 +10,7 @@ The [MCP client](2026-07-07-mcp-client-plugin.md) connected once at plugin load.
 
 ## Decision
 
-`packages/mcp/mcp-client/src/connection.ts` owns a per-instance connection supervisor; `apply()` shrinks to config resolution plus two effects (the `serverName` reservation and the supervisor's lifecycle). The supervisor owns the client/transport generations, the live tool registrations, and the reconnect loop.
+`packages/mcp/mcp-client/src/connection.ts` owns a per-instance connection supervisor; `apply()` resolves configuration and registers its lifecycle effect. The supervisor owns the `serverName` reservation, client/transport generations, live tool registrations, and reconnect loop. The [saved Host connection manager](../architecture/2026-11-01-host-mcp-settings.md) uses the same supervisor.
 
 **Trigger.** The supervisor arms `client.onclose` per generation. The SDK fires it when the stdio child exits, so a crash is observed without polling. `StreamableHTTPClientTransport` fires `onclose` only for deliberate closes — it owns its internal SSE-stream recovery and surfaces request failures per call — so HTTP servers are effectively outside supervisor restarts; the package README records that limitation.
 

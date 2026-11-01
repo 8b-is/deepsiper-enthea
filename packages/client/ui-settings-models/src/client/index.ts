@@ -87,7 +87,7 @@ export function apply(ctx: ClientContext): void {
   })
   const welcomeController = new WelcomeNoticeStore(
     connection.api,
-    connection.isLoopback ? 'host' : 'memory',
+    connection.access.getSnapshot()?.settings === true ? 'host' : 'memory',
   )
   const welcomeInjected = (): WelcomeNoticeInjected => ({
     controller: welcomeController,
@@ -104,6 +104,9 @@ export function apply(ctx: ClientContext): void {
       refreshWelcomeIfLoaded(welcomeController)
     }
     const disposers = [
+      connection.access.subscribe(() => {
+        void welcomeController.setAccess(connection.access.getSnapshot()?.settings === true)
+      }),
       ctx.remote.$on('settings/document-updated', (ns) => {
         refreshModels()
         if (ns === WELCOME_NOTICE_SETTINGS_NAMESPACE) refreshWelcomeIfLoaded(welcomeController)
@@ -112,7 +115,10 @@ export function apply(ctx: ClientContext): void {
       ctx.remote.$on('llm/adapters-updated', refreshModels),
       ctx.on('connection/reset', refreshAll),
     ]
-    return () => { for (const dispose of disposers) dispose() }
+    return () => {
+      for (const dispose of disposers) dispose()
+      welcomeController.dispose()
+    }
   }, 'ui-settings-models: pushed invalidations')
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({

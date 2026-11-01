@@ -11,6 +11,9 @@ import { WebApiClient } from './web-api-client.ts'
 import { createWebConnectionRpc } from './rpc.ts'
 import { isLoopbackHostname } from '../loopback-hostname.ts'
 import type { ClientConnectionRpc } from '../rpc.ts'
+import type { ConnectionAccess } from '../access.ts'
+import { readConnectionAccess } from './access.ts'
+export type { ConnectionAccess } from '../access.ts'
 
 // ---- Contract re-exports (browser-safe apiproxy channels + core types) ----
 export type {
@@ -49,6 +52,14 @@ export interface HostDescriptionSource {
   subscribe(listener: () => void): () => void
 }
 
+/** Request-derived permissions for the current connected generation. */
+export interface ConnectionAccessSource {
+  /** Unknown until discovery succeeds, and while disconnected. */
+  getSnapshot(): ConnectionAccess | undefined
+  /** Observe permission discovery, revocation, and connection loss. */
+  subscribe(listener: () => void): () => void
+}
+
 /** Required services (none — this is the wire root). */
 export const inject: string[] = []
 
@@ -62,6 +73,8 @@ export interface ConnectionHandle {
   readonly api: IApiClient
   /** Whether the current page authority is loopback; non-browser contexts default to true. */
   readonly isLoopback: boolean
+  /** Server-authorized permissions, independent of the page hostname. */
+  readonly access: ConnectionAccessSource
   /** Generation-scoped Host facts, including native path-open capability. */
   readonly hostDescription: HostDescriptionSource
   /** Generic logical RPC channels over the same Connection transport. */
@@ -88,6 +101,19 @@ export function apply(ctx: Context): void {
   const api: IApiClient = fixtureClient ?? new WebApiClient()
   const rpc = fixtureClient?.rpc ?? createWebConnectionRpc()
   let started = false
+  let access: ConnectionAccess | undefined
+  const accessListeners = new Set<() => void>()
+  const publishAccess = (next: ConnectionAccess | undefined): void => {
+    if (Object.is(access, next)) return
+    access = next
+    for (const listener of [...accessListeners]) {
+      try {
+        listener()
+      } catch (error) {
+        console.error('[web-runtime] access listener threw:', error)
+      }
+    }
+  }
   let description: HostDescription | undefined
   const descriptionListeners = new Set<() => void>()
   const publishDescription = (next: HostDescription | undefined): void => {
@@ -104,6 +130,13 @@ export function apply(ctx: Context): void {
   const handle: ConnectionHandle = {
     api,
     isLoopback: pageLocation === undefined || isLoopbackHostname(pageLocation.hostname),
+    access: {
+      getSnapshot: () => access,
+      subscribe: (listener) => {
+        accessListeners.add(listener)
+        return () => { accessListeners.delete(listener) }
+      },
+    },
     hostDescription: {
       getSnapshot: () => description,
       subscribe: (listener) => {
@@ -117,6 +150,10 @@ export function apply(ctx: Context): void {
       started = true
       const controller = new ConnectionController(api, {
         ...sinks,
+        onAccess: (next) => {
+          publishAccess(next)
+          if (Object.is(access, next)) sinks.onAccess?.(next)
+        },
         onConnected: (next) => {
           publishDescription(next)
           // A description subscriber may synchronously stop the loop. In that
@@ -130,14 +167,18 @@ export function apply(ctx: Context): void {
           if (state === 'reconnecting') publishDescription(undefined)
           sinks.onStateChange?.(state)
         },
-      }, config ?? {})
-      controller.start()
-      return {
-        stop: () => {
-          controller.stop()
-          publishDescription(undefined)
-        },
+      }, config ?? {}, fixtureClient === undefined
+        ? readConnectionAccess
+        : () => Promise.resolve({ settings: true, native: true }))
+      const stop = (): void => {
+        controller.stop()
+        publishDescription(undefined)
       }
+      ctx.effect(() => {
+        controller.start()
+        return stop
+      }, 'connection: stream and access lifecycle')
+      return { stop }
     },
   }
   ctx.provide('connection', handle)

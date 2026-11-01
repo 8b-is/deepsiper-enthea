@@ -31,6 +31,16 @@ MCP 客户端桥接插件：连接外部 [Model Context Protocol](https://modelc
 
 模型会看到 `mcp__github__create_issue`、`mcp__web__search` 等工具，这与 Claude Code 和 Codex 使用的服务器限定形状相同。HMR（热模块替换）支持热替换：编辑配置项会触发断开 + 重新连接，无需重启进程；`serverName` 不变时会生成完全相同的工具名称。
 
+## 持久化的 Host 本地管理
+
+在 Host 组合中，与 `settings` 和 `tools` 一起挂载一次 `@deepseek-ai/dsh-mcp-client/settings`。它提供 `ctx.mcpServers`，并注册实时生效的 `mcp-servers` 设置 namespace，初始值为 `{ servers: {} }`。字典键是服务器 namespace；条目默认 `enabled: false`，使用下表中的传输字段，不含 `serverName` 或 `failOnStartupError`。已保存连接的握手／发现总超时默认为 10000 毫秒。设置提供方负责持久化，因此重启 Host 后会恢复保存的条目，无需编辑预设。
+
+启用服务器会在 Host 上启动可执行文件或连接其 HTTP 端点，不在 agent 沙箱中运行。只保存可信命令和端点。DSH 不安装或下载服务器。Stdio 继承已清理的环境并叠加显式 `env`；服务器 stderr 可能回显凭据，因此不会转发。`env` 和 `headers` 的每个值都是只写设置机密。编辑器必须使用路径修改和 revision 校验，不能从脱敏响应重建配置后整体替换。
+
+配置变更会先停止受影响连接，再启动替代连接，其他服务器保持不变。连接失败按服务器隔离。若无法确认关闭，namespace 仍被保留并拒绝替换。`mcpServers.list()` 返回实际连接状态、已注册工具数和脱敏诊断。`mcpServers.test(name)` 只执行发现：复用已连接客户端，未启用条目使用返回前关闭的临时连接，既不调用工具，也不修改持久启用状态。受保护的 Web API 分别通过 `api.mcp.list({})` 和 `api.mcp.test({ name })` 暴露这些操作。
+
+[Host MCP 设置决策](../../../.agents/notes/implemented/architecture/2026-11-01-host-mcp-settings.md)说明进程归属、发现流程与凭据处理。
+
 ## 配置
 
 | 字段 | 传输 | 必填 | 描述 |
@@ -44,6 +54,8 @@ MCP 客户端桥接插件：连接外部 [Model Context Protocol](https://modelc
 | `url` | http | 是 | MCP 服务器 URL |
 | `headers` | http | 否 | 额外标头（例如认证 token） |
 | `toolCallTimeoutMs` | 两者 | 否 | 每次 `callTool` 调用的超时（默认 60000） |
+| `connectTimeoutMs` | 两者 | 否 | 初始握手／发现总超时（毫秒）；显式组合实例省略时继承 SDK 请求超时 |
+| `smartTreeMemory` | 两者 | 否 | Smart Tree 原始 `memory` 工具策略：`off`、`read-only` 或 `read-write`；省略时保留通用 MCP 行为 |
 | `failOnStartupError` | 两者 | 否 | 初始连接或工具同步失败时拒绝插件激活（默认 `false`） |
 | `reconnect.enabled` | 两者 | 否 | 连接丢失后自动重新连接（默认 `true`） |
 | `reconnect.initialDelayMs` | 两者 | 否 | 首次重连延迟（毫秒）；每次连续失败尝试翻倍（默认 500） |
@@ -84,7 +96,7 @@ MCP 客户端桥接插件：连接外部 [Model Context Protocol](https://modelc
 
 #### 模型看到的内容
 
-初始发现成功后，每个已声明的 MCP 工具都会显示为名为 `mcp__<serverName>__<rawName>`（或其确定性规范化形式）的原生工具，并携带服务器提供的描述和输入 schema。成功的重新同步——包括自动重连后的同步——会替换整个世代；对插件执行 dispose（资源释放）或重连预算耗尽会移除该世代。
+初始发现成功后，每个已声明的 MCP 工具都会显示为名为 `mcp__<serverName>__<rawName>`（或其确定性规范化形式）的原生工具，并携带服务器提供的描述和输入 schema。成功的重新同步——包括自动重连后的同步——会替换整个世代；对插件执行 dispose（资源释放）或重连预算耗尽会移除该世代。对于明确配置的 Smart Tree 服务器，`off` 隐藏原始 `memory` 工具；`read-only` 收窄 schema，并在分发前独立拒绝除精确字面值 `find` 之外的所有操作。`read-write` 保留服务器 schema。策略变更会改变已注册的 schema 前缀。其他工具不受限制，召回可能更新访问元数据，不会自动保存聊天消息。此选项不提供 MEM16 适配器。
 
 #### Token 影响
 
@@ -111,7 +123,7 @@ MCP 客户端桥接插件：连接外部 [Model Context Protocol](https://modelc
 ## 已知限制与暂缓事项
 
 - **只桥接 MCP 的工具能力**：资源和提示词没有 harness 消费接口，暂缓实现。
-- **启动超时继承自 MCP SDK**：DSH 尚未公开连接／发现超时。每次 initialize 请求或分页 `tools/list` 请求都使用 SDK 默认的 60 秒，因此在初始同步完成期间，无响应的 server 或 cursor chain 可能同时延迟激活与 teardown。
+- **发现不等于工具执行**：检查成功只证明握手和工具名称发现成功，不证明工具可用。正在重连或失败的活动连接必须先恢复或被停用，才能进行新的临时连接检查。
 - **重连在传输关闭时触发**：崩溃的 stdio 子进程会触发重连；Streamable HTTP 失败通过每次请求以及 SDK 传输自身的 SSE（Server-Sent Events）流恢复机制暴露，因此不可达的 HTTP 服务器会按调用重试，而非由 supervisor 重新 spawn。
 - **图片是唯一的持久丰富结果桥接**：PNG、JPEG、WebP 和 GIF 可以在确切能力得到证明后进入 Native 上下文。音频和嵌入资源载荷仍只存在于执行局部，并配有明确诊断；资源链接只以文本保留名称和 URI。
 - **不强制执行不受支持的 MCP 输出 schema**：已声明 schema 使用 harness 子集之外的词汇时，`structuredContent` 会回退到 `JsonValue`。

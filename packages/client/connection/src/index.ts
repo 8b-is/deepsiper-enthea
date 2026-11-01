@@ -8,6 +8,8 @@ import { toFetchHandler } from '@deepseek-ai/dsh-host-apiproxy'
 import { API_PATH, HOST_EVENTS_PATH, MUX_EVENTS_PATH } from './api-path.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority, isTrustedApiRequest } from './api-request-trust.ts'
+import { ACCESS_PATH, type ConnectionAccess } from './access.ts'
+import { authenticatedProxyVerifier, type AuthenticatedProxyConfig } from './authenticated-proxy.ts'
 import { HostConnectionService } from './rpc-host.ts'
 import { rejectWebSocketUpgrade, WebSocketDownlinks } from './websocket-downlink.ts'
 
@@ -59,71 +61,43 @@ export interface ConnectionConfig {
   trustedHosts?: string[]
   /** Maximum buffered JSON body for every `/api` request. */
   maxRequestBodyBytes?: number
+  /** Administrator configuration access through an authenticated, loopback-only HTTPS proxy. */
+  authenticatedProxy?: AuthenticatedProxyConfig
 }
 
 export const Config: z<ConnectionConfig> = z.object({
   trustedHosts: z.array(String).default([]),
   maxRequestBodyBytes: z.natural().min(1).default(DEFAULT_MAX_REQUEST_BODY_BYTES),
+  // A union leaves this opt-in unset; an object schema supplies {} by default.
+  authenticatedProxy: z.union([z.object({
+    origin: z.string().required(),
+    tokenFile: z.string().required(),
+  })]),
 })
 
+/** Native desktop actions are unavailable through the authenticated proxy. */
+const NATIVE_METHODS = new Set([
+  'agentPreset.openDocument', 'host.pickDirectory', 'host.openPath', 'settings.openDocument',
+])
+
 /**
- * Methods gated to loopback even on a trusted-host deployment. Native dialogs
- * act on the host machine; the settings and credential domains mutate the
- * user's configuration and secret store, and READING them is equally
- * privileged — `settings.describe` returns every exposed namespace's
- * configuration and `credentials.describe` reports whether an arbitrary
- * environment-variable name is configured and where from, which is
- * reconnaissance no anonymous caller should have. `trustedHosts` is a
- * DNS-rebinding fence, explicitly not authentication, so the whole
- * configuration plane stays loopback-same-origin until a real authentication
- * layer exists. `llm.discoverModels` belongs to that plane on both counts: it
- * carries a draft credential, and it makes the HOST issue a GET to a URL the
- * caller chose and reports back the status or the parsed body — an anonymous
- * LAN caller would have a probe for whatever the host can reach and the
- * browser cannot.
- *
- * The model catalog (`llm.providers`, `llm.models`) is deliberately NOT here:
- * it carries provider ids, display names, and model lists — no endpoints,
- * keys, or key state — and a LAN client's model picker legitimately needs it.
+ * Administrator operations: configuration and credential reads are privileged
+ * too. Model discovery can request a caller-selected Host URL; preset authoring
+ * controls the available compositions. Public catalog and roster reads stay out.
  */
-const PRIVILEGED_METHODS = new Set([
-  // A preset composition names the plugins a session runs, so reading one is
-  // reconnaissance; copy and remove rearrange what the deployment offers, and
-  // openDocument drives the host desktop — all more than the roster beside
-  // them. (Authoring is copy-only, so no method here accepts composition text
-  // or a path; the pin is about who may manage the roster at all.)
-  //
-  // CHOOSING one is not pinned, and `agentPreset.list` is not either. Picking a
-  // preset looks like escalation — one of them mounts the toolset that edits the
-  // live runtime — but `session.create` already takes an `agentPreset`, so
-  // pinning only the switch would leave the same capability one method over.
-  // The deeper reason is that the capability is not the preset's to grant: the
-  // deployment's own default already carries `bash` and the filesystem tools, so
-  // any caller that may start a session at all can already run commands as this
-  // process. Pinning the switch would be a fence beside an open gate.
-  'agentPreset.read',
-  'agentPreset.copy',
-  'agentPreset.openDocument',
-  'agentPreset.remove',
-  'host.pickDirectory',
-  'host.openPath',
-  'settings.describe',
-  'settings.openDocument',
-  'settings.update',
-  'settings.replace',
-  'settings.mutate',
-  'credentials.describe',
-  'credentials.set',
-  'credentials.unset',
-  'llm.discoverModels',
+const CONFIGURATION_METHODS = new Set([
+  'agentPreset.read', 'agentPreset.copy', 'agentPreset.remove',
+  'settings.describe', 'settings.update', 'settings.replace', 'settings.mutate',
+  'credentials.describe', 'credentials.set', 'credentials.unset', 'llm.discoverModels',
+  'mcp.list', 'mcp.test',
 ])
 
 /**
  * Mounts the API gateway under the browser transport prefix. Every request on
  * the prefix passes the browser-trust fence first (DNS-rebinding and
  * cross-site defense — [api-request-trust](./api-request-trust.ts));
- * privileged methods additionally pass it with an empty trust list, which
- * pins them to loopback.
+ * native operations remain loopback-only; configuration additionally accepts
+ * an explicit authenticated-proxy proof. Authorization precedes shared RPC dispatch.
  * @param ctx - Host plugin context.
  * @param config - resolved plugin config (schema defaults applied).
  */
@@ -134,19 +108,16 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
   // Config boundary: a malformed entry fails the load loudly here rather than
   // silently authorizing its hostname prefix at request time.
   for (const entry of trustedHosts) assertTrustedAuthority(entry)
+  const verifyProxy = authenticatedProxyVerifier(config?.authenticatedProxy, ctx.webServer.host)
+  if (config?.authenticatedProxy !== undefined
+    && !isTrustedApiRequest({ headers: { host: new URL(config.authenticatedProxy.origin).host } }, trustedHosts)) {
+    throw new Error('client-connection: authenticatedProxy origin must also be declared in trustedHosts')
+  }
   if (ctx.get('apiProxy') !== undefined) assertImageBodyCapacity(ctx, maxRequestBodyBytes)
   const connection = new HostConnectionService(ctx, trustedHosts)
   const fetchHandler = connection.createSharedFetchHandler(API_PATH, {
     async fetch(request) {
       const pathname = new URL(request.url).pathname
-      const method = pathname.startsWith(`${API_PATH}/`)
-        ? pathname.slice(API_PATH.length + 1)
-        : undefined
-      if (method !== undefined
-        && PRIVILEGED_METHODS.has(method)
-        && !isTrustedApiRequest(request, [])) {
-        return new Response('forbidden', { status: 403 })
-      }
       if (request.method === 'GET' && (pathname === MUX_EVENTS_PATH || pathname === HOST_EVENTS_PATH)) {
         return new Response('upgrade required', {
           status: 426,
@@ -163,6 +134,26 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
     path: API_PATH,
     handler: async (req, res) => {
       if (!isTrustedApiRequest(req, trustedHosts)) {
+        res.writeHead(403)
+        res.end('forbidden')
+        return
+      }
+      const native = isTrustedApiRequest(req, [])
+      const access: ConnectionAccess = { settings: native || verifyProxy(req), native }
+      const pathname = new URL(req.url ?? '/', 'http://dsh.internal').pathname
+      if (pathname === ACCESS_PATH) {
+        if (req.method !== 'GET') {
+          res.writeHead(405, { allow: 'GET', 'cache-control': 'no-store' })
+          res.end()
+          return
+        }
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
+        res.end(JSON.stringify(access))
+        return
+      }
+      const method = pathname.startsWith(`${API_PATH}/`) ? pathname.slice(API_PATH.length + 1) : ''
+      if ((NATIVE_METHODS.has(method) && !access.native)
+        || (CONFIGURATION_METHODS.has(method) && !access.settings)) {
         res.writeHead(403)
         res.end('forbidden')
         return

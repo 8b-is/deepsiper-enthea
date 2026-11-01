@@ -15,6 +15,8 @@ import type { GoalsApi } from './goals.ts'
 import type { SettingsApi } from './settings.ts'
 import type { CredentialsApi } from './credentials.ts'
 import type { LlmApi } from './llm.ts'
+import type { McpApi } from './mcp.ts'
+export type { McpApi, McpServerView } from './mcp.ts'
 import type { DownloadsApi } from './downloads.ts'
 import type { ClientResponse, RpcReceipt } from './rpc.ts'
 
@@ -31,6 +33,7 @@ export interface ApiProxy {
   settings: SettingsApi
   credentials: CredentialsApi
   llm: LlmApi
+  mcp: McpApi
   /** Host-only download surfaces (GET, no wire envelope); absent from IApiClient. */
   downloads: DownloadsApi
   /**

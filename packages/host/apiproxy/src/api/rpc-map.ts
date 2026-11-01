@@ -13,6 +13,7 @@ import type { GoalsApi } from './goals.ts'
 import type { SettingsApi } from './settings.ts'
 import type { CredentialsApi } from './credentials.ts'
 import type { LlmApi } from './llm.ts'
+import type { McpApi } from './mcp.ts'
 import type { SubagentsApi } from './subagents.ts'
 import type { RpcResponse } from './rpc.ts'
 
@@ -71,6 +72,8 @@ export interface RpcMethodMap {
   'credentials.describe': CredentialsApi['describe']
   'credentials.set': CredentialsApi['set']
   'credentials.unset': CredentialsApi['unset']
+  'mcp.list': McpApi['list']
+  'mcp.test': McpApi['test']
   'llm.providers': LlmApi['providers']
   'llm.models': LlmApi['models']
   'llm.discoverModels': LlmApi['discoverModels']

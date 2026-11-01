@@ -45,16 +45,17 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
   private readGeneration = 0
   private writeGeneration = 0
   private disposed = false
+  private accessGeneration = 0
 
   /**
    * @param api - settings wire face.
    * @param spec - namespace identity and optional narrowing decoder.
-   * @param persistence - remote browsers remain process-local because settings RPCs are loopback-only.
+   * @param persistence - initial Host access; unknown or denied access uses memory until explicitly granted.
    */
   constructor(
     private readonly api: SettingsFace,
     private readonly spec: SettingsScopeSpec<T>,
-    private readonly persistence: 'host' | 'memory' = 'host',
+    private persistence: 'host' | 'memory' = 'host',
   ) {
     this.store = createSnapshotStore<SettingsScopeSnapshot<T>>({
       status: persistence === 'host' ? 'loading' : 'unavailable',
@@ -65,6 +66,30 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
       writable: false,
       mode: persistence,
     })
+  }
+
+  /**
+   * Apply request permissions without migrating local preferences to the Host.
+   * @param allowed - true only after the current connection authorizes settings.
+   * @returns completion of the fresh Host read on a grant.
+   */
+  setAccess(allowed: boolean): Promise<void> {
+    const persistence = allowed ? 'host' : 'memory'
+    if (this.disposed || this.persistence === persistence) return Promise.resolve()
+    this.persistence = persistence
+    this.accessGeneration += 1
+    this.readGeneration += 1
+    this.writeGeneration += 1
+    this.store.update((draft) => {
+      draft.status = allowed ? 'loading' : 'unavailable'
+      draft.mode = persistence
+      draft.value = undefined
+      draft.base = undefined
+      draft.user = undefined
+      draft.revision = undefined
+      draft.writable = false
+    })
+    return allowed ? this.load() : Promise.resolve()
   }
 
   /** @returns the current sync snapshot (stable reference until the next change). */
@@ -115,6 +140,7 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
     this.readGeneration += 1
     const generation = ++this.writeGeneration
     return this.enqueue(async () => {
+      const accessGeneration = this.accessGeneration
       const revision = this.getSnapshot().revision
       let response: Awaited<ReturnType<SettingsFace['settings']['mutate']>>
       try {
@@ -124,9 +150,10 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
           ...(revision === undefined ? {} : { expectedRevision: revision }),
         })
       } catch (_settingsWriteFailure) {
-        if (!this.disposed && generation === this.writeGeneration) await this.read(++this.readGeneration)
+        if (this.hasAccess(accessGeneration) && generation === this.writeGeneration) await this.read(++this.readGeneration)
         return
       }
+      if (!this.hasAccess(accessGeneration)) return
       if (!response.result.ok) {
         if (!this.disposed && generation === this.writeGeneration) await this.read(++this.readGeneration)
         return
@@ -148,8 +175,9 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
 
   private enqueue(operation: () => Promise<void>): Promise<void> {
     if (this.persistence === 'memory' || this.disposed) return Promise.resolve()
+    const accessGeneration = this.accessGeneration
     const task = this.tail.then(async () => {
-      if (this.disposed) return
+      if (!this.hasAccess(accessGeneration)) return
       await operation()
     })
     // The returned task carries its own settlement to the caller; the queue
@@ -158,14 +186,19 @@ export class SettingsScopeController<T> implements SettingsScope<T> {
     return task
   }
 
+  private hasAccess(generation: number): boolean {
+    return !this.disposed && this.persistence === 'host' && generation === this.accessGeneration
+  }
+
   private async read(generation: number): Promise<void> {
+    const accessGeneration = this.accessGeneration
     let response: Awaited<ReturnType<SettingsFace['settings']['describe']>>
     try {
       response = await this.api.settings.describe({})
     } catch (_settingsReadFailure) {
       return
     }
-    if (!response.result.ok || this.disposed) return
+    if (!response.result.ok || !this.hasAccess(accessGeneration)) return
     const { namespaces, writable } = response.result.value
     const view = namespaces.find(candidate => candidate.ns === this.spec.namespace)
     const publish = generation === this.readGeneration
@@ -248,7 +281,7 @@ export class SettingsScopeBinder extends Service {
     const controller = new SettingsScopeController<T>(
       connection.api,
       spec,
-      connection.isLoopback ? 'host' : 'memory',
+      connection.access.getSnapshot()?.settings === true ? 'host' : 'memory',
     )
     ctx.effect(() => {
       const refresh = (namespace?: string): void => {
@@ -256,6 +289,9 @@ export class SettingsScopeBinder extends Service {
         void controller.load()
       }
       const disposers = [
+        connection.access.subscribe(() => {
+          void controller.setAccess(connection.access.getSnapshot()?.settings === true)
+        }),
         (ctx.get('remote') as Context['remote']).$on('settings/document-updated', refresh),
         ctx.on('connection/reset', () => { refresh() }),
       ]

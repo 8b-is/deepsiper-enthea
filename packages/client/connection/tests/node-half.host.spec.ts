@@ -1,8 +1,12 @@
 /** Node half: registers the /api prefix route bridging to the api gateway. */
 import { EventEmitter, once } from 'node:events'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createServer, request as httpRequest } from 'node:http'
 import { PassThrough, Readable } from 'node:stream'
 import { Context } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
 import { describe, expect, it } from 'vitest'
 import type { AddressInfo } from 'node:net'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -10,13 +14,13 @@ import type { ApiProxy } from '@deepseek-ai/dsh-host-apiproxy/api'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import { RpcId, type ClientRequest } from '@deepseek-ai/dsh-host-apiproxy/api'
 import type { WebServer, WebRoute, WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
-import { API_PATH, apply, HOST_EVENTS_PATH, inject, MUX_EVENTS_PATH, type HostConnectionHandle } from '../src/index.ts'
+import { API_PATH, apply, Config, HOST_EVENTS_PATH, inject, MUX_EVENTS_PATH, type HostConnectionHandle } from '../src/index.ts'
 
 /** Structural webServer fake recording both route registries. */
 function fakeHttpServer(
   routes: WebRoute[],
   upgrades: WebUpgradeRoute[],
-): Pick<WebServer, 'register' | 'registerUpgrade' | 'tapIndex' | 'port'> {
+): Pick<WebServer, 'register' | 'registerUpgrade' | 'tapIndex' | 'port' | 'host'> {
   return {
     register(route) {
       if (routes.some(candidate => candidate.kind === route.kind && candidate.path === route.path)) {
@@ -31,6 +35,7 @@ function fakeHttpServer(
     },
     tapIndex: () => () => {},
     port: 0,
+    host: '127.0.0.1',
   }
 }
 
@@ -56,12 +61,12 @@ function fakeRawPost(headers: Record<string, string>, url: string, body: string)
 }
 
 /** Response recorder compatible with both the fence's short-circuit and the bridge. */
-function fakeResponse(): { response: ServerResponse; state: { status?: number; body?: unknown } } {
-  const state: { status?: number; body?: unknown } = {}
+function fakeResponse(): { response: ServerResponse; state: { status?: number; body?: unknown; headers?: unknown } } {
+  const state: { status?: number; body?: unknown; headers?: unknown } = {}
   const chunks: Buffer[] = []
   const response = Object.assign(new EventEmitter(), {
     writableEnded: false,
-    writeHead(value: number) { state.status = value; return this },
+    writeHead(value: number, headers?: unknown) { state.status = value; state.headers = headers; return this },
     write(value: string | Uint8Array) { chunks.push(Buffer.from(value)); return true },
     end(this: { writableEnded: boolean }, value?: unknown) {
       if (typeof value === 'string' || value instanceof Uint8Array) chunks.push(Buffer.from(value))
@@ -90,6 +95,15 @@ async function mounted(config?: { trustedHosts?: string[] }): Promise<{
 }
 
 describe('connection node half', () => {
+  it('leaves proxy authorization disabled unless a complete opt-in is configured', () => {
+    expect(Config({}).authenticatedProxy).toBeUndefined()
+    expect(Config({ trustedHosts: [] }).authenticatedProxy).toBeUndefined()
+    expect(() => { z.resolve({ authenticatedProxy: {} }, Config, {}) }).toThrow('$.authenticatedProxy')
+    expect(() => { z.resolve({ authenticatedProxy: { origin: 'https://harness.example' } }, Config, {}) }).toThrow('$.authenticatedProxy')
+    expect(Config({ authenticatedProxy: { origin: 'https://harness.example', tokenFile: '/private/proxy.token' } }).authenticatedProxy)
+      .toEqual({ origin: 'https://harness.example', tokenFile: '/private/proxy.token' })
+  })
+
   it('fails loud when the carrier cap cannot hold the configured image batch', () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
@@ -173,6 +187,7 @@ describe('connection node half', () => {
       'settings.describe', 'settings.openDocument', 'settings.update', 'settings.replace', 'settings.mutate',
       'credentials.describe', 'credentials.set', 'credentials.unset',
       'llm.discoverModels',
+      'mcp.list', 'mcp.test',
       // A composition names the plugins a session runs: reading one is
       // reconnaissance, and copy/remove/openDocument manage the roster and
       // drive the host desktop.
@@ -190,6 +205,66 @@ describe('connection node half', () => {
     await routes[0]!.handler(fakeRequest({ host: 'harness.example' }), read.response)
     expect(read.state.status).not.toBe(403)
     await dispose()
+  })
+
+  it('authorizes authenticated configuration before shared dispatch while keeping native actions local', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'dsh-proxy-route-'))
+    const tokenFile = join(directory, 'token')
+    const token = 'a'.repeat(64)
+    writeFileSync(tokenFile, token, { mode: 0o600 })
+    const ctx = new Context()
+    const routes: WebRoute[] = []
+    ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
+    const fiber = ctx.plugin({ inject: [...inject], apply }, {
+      trustedHosts: ['harness.example'],
+      authenticatedProxy: { origin: 'https://harness.example', tokenFile },
+    })
+    let calls = 0
+    try {
+      await fiber.await()
+      const connection = ctx.get('connection') as HostConnectionHandle
+      const uninstall = connection.rpc.intercept('/api', () => true, async () => {
+        calls += 1
+        return { ok: true, value: {} }
+      }, { authority: 'trusted-host' })
+      const headers = {
+        host: 'harness.example', origin: 'https://harness.example',
+        'sec-fetch-site': 'same-origin', 'x-dsh-authenticated-proxy': token,
+      }
+      for (const [proof, status] of [['wrong', 403], [token, 200]] as const) {
+        const request = fakePost({ ...headers, 'x-dsh-authenticated-proxy': proof }, '/api/settings.describe', {
+          type: 'client-request', rpcId: 'settings-proxy', method: 'settings.describe', payload: {},
+        })
+        Object.assign(request, { socket: { remoteAddress: '127.0.0.1' } })
+        const reply = fakeResponse()
+        await routes[0]!.handler(request, reply.response)
+        expect(reply.state.status).toBe(status)
+      }
+      expect(calls).toBe(1)
+      for (const method of ['host.pickDirectory', 'host.openPath', 'settings.openDocument', 'agentPreset.openDocument']) {
+        const request = fakePost(headers, `/api/${method}`, {
+          type: 'client-request', rpcId: 'native-proxy', method, payload: {},
+        })
+        Object.assign(request, { socket: { remoteAddress: '127.0.0.1' } })
+        const reply = fakeResponse()
+        await routes[0]!.handler(request, reply.response)
+        expect(reply.state.status).toBe(403)
+      }
+      expect(calls).toBe(1)
+      for (const [proof, settings] of [['wrong', false], [token, true]] as const) {
+        const request = fakeRequest({ ...headers, 'x-dsh-authenticated-proxy': proof }, '/api/access')
+        Object.assign(request, { socket: { remoteAddress: '127.0.0.1' } })
+        const reply = fakeResponse()
+        await routes[0]!.handler(request, reply.response)
+        expect(reply.state.status).toBe(200)
+        expect(JSON.parse(reply.state.body as string)).toEqual({ settings, native: false })
+        expect(reply.state.headers).toMatchObject({ 'cache-control': 'no-store' })
+      }
+      await uninstall()
+    } finally {
+      await fiber.dispose()
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 
   it('passes loopback and declared-authority requests through to the bridge', async () => {
@@ -470,6 +545,7 @@ describe('connection node half over a real HTTP server', () => {
         // Carries a draft credential and turns the host into a fetcher for a
         // URL the caller picked: an anonymous LAN caller must not reach it.
         'llm.discoverModels',
+        'mcp.list', 'mcp.test',
         'agentPreset.read', 'agentPreset.copy', 'agentPreset.openDocument', 'agentPreset.remove',
       ]) {
         expect([method, await call(port, method, 'harness.example')]).toEqual([method, 403])

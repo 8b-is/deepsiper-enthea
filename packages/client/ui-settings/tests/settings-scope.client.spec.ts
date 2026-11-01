@@ -365,7 +365,100 @@ describe('SettingsScopeController', () => {
     expect(scope.getSnapshot()).toMatchObject({ value: { preference: 'light' }, revision: 5 })
   })
 })
+describe('settings access transitions', () => {
+  it('does not send unknown-access writes and loads Host state rather than migrating local state', async () => {
+    const describeCall = vi.fn().mockResolvedValue(described({ preference: 'dark' }, 3))
+    const mutate = vi.fn().mockResolvedValue(ok(view({ preference: 'light' }, 4)))
+    const scope = new SettingsScopeController<UiTestSettings>(
+      { settings: { describe: describeCall, mutate } } as never,
+      { namespace: 'ui-test' }, 'memory',
+    )
+    await scope.set('preference', 'light')
+    expect(mutate).not.toHaveBeenCalled()
+    await scope.setAccess(true)
+    expect(scope.getSnapshot()).toMatchObject({ mode: 'host', value: { preference: 'dark' }, revision: 3 })
+    expect(mutate).not.toHaveBeenCalled()
+    await scope.set('preference', 'light')
+    expect(mutate).toHaveBeenCalledOnce()
+    await scope.dispose()
+    await scope.setAccess(true)
+  })
+
+  it('drops queued writes and a late mutation response across revoke and regrant', async () => {
+    const pending = deferred<ReturnType<typeof ok<SettingsNamespaceView>>>()
+    const mutate = vi.fn().mockReturnValueOnce(pending.promise)
+    const describeCall = vi.fn().mockResolvedValue(described({ preference: 'system' }, 8))
+    const scope = new SettingsScopeController<UiTestSettings>(
+      { settings: { describe: describeCall, mutate } } as never, { namespace: 'ui-test' },
+    )
+    const first = scope.set('preference', 'dark')
+    await vi.waitFor(() => { expect(mutate).toHaveBeenCalledOnce() })
+    const queued = scope.set('preference', 'light')
+    await scope.setAccess(false)
+    const revoked = scope.getSnapshot()
+    expect(revoked).toMatchObject({ mode: 'memory', value: undefined, revision: undefined, writable: false })
+    await scope.set('preference', 'dark')
+    const granted = scope.setAccess(true)
+    pending.resolve(ok(view({ preference: 'dark' }, 999)))
+    await Promise.all([first, queued, granted])
+    expect(mutate).toHaveBeenCalledOnce()
+    expect(scope.getSnapshot()).toMatchObject({ mode: 'host', value: { preference: 'system' }, revision: 8 })
+    await scope.dispose()
+  })
+
+  it('does not publish a late read after permission revocation', async () => {
+    const pending = deferred<ReturnType<typeof described>>()
+    const scope = new SettingsScopeController<UiTestSettings>(
+      { settings: { describe: () => pending.promise } } as never, { namespace: 'ui-test' },
+    )
+    const read = scope.load()
+    await Promise.resolve()
+    await scope.setAccess(false)
+    const revoked = scope.getSnapshot()
+    pending.resolve(described({ preference: 'dark' }, 99))
+    await read
+    expect(scope.getSnapshot()).toBe(revoked)
+    await scope.dispose()
+  })
+})
+
 describe('SettingsScopeBinder.bind', () => {
+  it('persists from an authorized remote page and unsubscribes permissions on disposal', async () => {
+    let access: { settings: boolean; native: boolean } | undefined
+    const listeners = new Set<() => void>()
+    const describeCall = vi.fn().mockResolvedValue(described({ preference: 'dark' }, 1))
+    const mutate = vi.fn().mockResolvedValue(ok(view({ preference: 'light' }, 2)))
+    const ctx = new Context()
+    ctx.provide('connection', {
+      api: { settings: { describe: describeCall, mutate } }, isLoopback: false,
+      access: {
+        getSnapshot: () => access,
+        subscribe: (listener: () => void) => { listeners.add(listener); return () => listeners.delete(listener) },
+      },
+    } as never)
+    new TestRemote(ctx)
+    await ctx.plugin(SettingsScopeBinder).await()
+    let scope!: SettingsScope<UiTestSettings>
+    const fiber = ctx.plugin({
+      inject: ['connection', 'remote', 'settingsScope'],
+      apply(owner: Context) {
+        scope = owner.settingsScope.bind<UiTestSettings>({ namespace: 'ui-test' })
+      },
+    })
+    await fiber.await()
+    expect(describeCall).not.toHaveBeenCalled()
+    access = { settings: true, native: false }
+    for (const listener of listeners) listener()
+    await vi.waitFor(() => { expect(scope.getSnapshot().writable).toBe(true) })
+    await scope.set('preference', 'light')
+    expect(mutate).toHaveBeenCalledOnce()
+    access = undefined
+    for (const listener of listeners) listener()
+    await scope.set('preference', 'dark')
+    expect(mutate).toHaveBeenCalledOnce()
+    await fiber.dispose()
+    expect(listeners.size).toBe(0)
+  })
   it('subscribes before the initial read and converges to the latest queued invalidation', async () => {
     const initial = deferred<ReturnType<typeof described>>()
     const describeCall = vi.fn()
@@ -376,6 +469,7 @@ describe('SettingsScopeBinder.bind', () => {
     ctx.provide('connection', {
       api: { settings: { describe: describeCall } },
       isLoopback: true,
+      access: { getSnapshot: () => ({ settings: true, native: true }), subscribe: () => () => {} },
     } as never)
     let scope!: SettingsScope<UiTestSettings>
     new TestRemote(ctx)
@@ -408,6 +502,7 @@ describe('SettingsScopeBinder.bind', () => {
     ctx.provide('connection', {
       api: { settings: { describe: describeCall } },
       isLoopback: false,
+      access: { getSnapshot: () => ({ settings: false, native: false }), subscribe: () => () => {} },
     } as never)
     let scope!: SettingsScope<UiTestSettings>
     new TestRemote(ctx)

@@ -9,7 +9,7 @@ import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { type JsonValue } from '@deepseek-ai/dsh-tools'
-import type { PostToolDecision } from '@deepseek-ai/dsh-tools'
+import type { PostToolDecision, ToolExecutionToken, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { publicToolName, syncTools, type ToolBridgeOptions } from '@deepseek-ai/dsh-mcp-client/src/tools.ts'
 import { createTransport } from '@deepseek-ai/dsh-mcp-client/src/transport.ts'
 import type { Config } from '@deepseek-ai/dsh-mcp-client'
@@ -175,6 +175,75 @@ describe('publicToolName', () => {
     const b = publicToolName('srv', 'admin_reset')
     expect(a).toBe(publicToolName('srv', 'admin.reset'))
     expect(a).not.toBe(b)
+  })
+})
+
+describe('Smart Tree memory policy', () => {
+  const memoryTool: MockTool = {
+    name: 'memory',
+    inputSchema: {
+      type: 'object',
+      properties: { operation: { type: 'string', enum: ['anchor', 'find'] }, keywords: { type: 'array', items: { type: 'string' } } },
+      required: ['operation', 'keywords'],
+    },
+  }
+  const direct: ToolRunContext = {
+    callId: CallId('direct-memory'), rootCallId: CallId('direct-memory'), token: Symbol('direct-memory') as ToolExecutionToken,
+    name: 'mcp__srv__memory', arguments: {}, signal: testToolSignal,
+    deferContext() {}, concludeTurn() {},
+  }
+
+  it('narrows read-only discovery and rejects writes and operation aliases inside the executor', async () => {
+    const ctx = await mountRegistry()
+    const client = createMockClient([memoryTool])
+    try {
+      await syncTools(client as unknown as Client, ctx, { ...defaultOpts, smartTreeMemory: 'read-only' }, new Map())
+      const definition = ctx.tools.get('mcp__srv__memory')!
+      expect(definition.parameters).toMatchObject({ properties: { operation: { enum: ['find'] } }, required: ['operation', 'keywords'] })
+      expect(memoryTool.inputSchema).toMatchObject({ properties: { operation: { enum: ['anchor', 'find'] } } })
+      for (const args of [
+        { operation: 'anchor', keywords: ['x'], context: 'write', anchor_type: 'pattern' },
+        { operation: 'search', keywords: ['x'] }, { operation: 'read', keywords: ['x'] },
+        { operation: 'FIND', keywords: ['x'] }, { operation: 'find ', keywords: ['x'] },
+        { operation: ['find'], keywords: ['x'] }, { action: 'find', keywords: ['x'] },
+        { op: 'find', keywords: ['x'] }, null, [], 'find',
+      ]) await expect(definition.execute(args, direct)).rejects.toThrow('only operation "find" is permitted')
+      expect(client.callTool).not.toHaveBeenCalled()
+      await definition.execute({ operation: 'find', keywords: ['x'] }, direct)
+      expect(client.callTool).toHaveBeenCalledWith({ name: 'memory', arguments: { operation: 'find', keywords: ['x'] } }, undefined, expect.any(Object))
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('hides disabled memory and also rejects direct execution of a retained definition', async () => {
+    const ctx = await mountRegistry()
+    const client = createMockClient([memoryTool, { name: 'scan', inputSchema: { type: 'object' } }])
+    const options: ToolBridgeOptions = { ...defaultOpts, smartTreeMemory: 'read-only' }
+    try {
+      const previous = await syncTools(client as unknown as Client, ctx, options, new Map())
+      const retained = ctx.tools.get('mcp__srv__memory')!
+      options.smartTreeMemory = 'off'
+      await syncTools(client as unknown as Client, ctx, options, previous)
+      expect(ctx.tools.get('mcp__srv__memory')).toBeUndefined()
+      expect(ctx.tools.get('mcp__srv__scan')).toBeDefined()
+      await expect(retained.execute({ operation: 'find', keywords: ['x'] }, direct)).rejects.toThrow('memory is disabled')
+      expect(client.callTool).not.toHaveBeenCalled()
+      await ctx.tools.get('mcp__srv__scan')!.execute({ operation: 'anchor' }, direct)
+      expect(client.callTool).toHaveBeenCalledOnce()
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it.each([undefined, 'read-write'] as const)('keeps generic and read-write memory requests unchanged: %s', async (policy) => {
+    const ctx = await mountRegistry()
+    const client = createMockClient([memoryTool])
+    try {
+      const options = { ...defaultOpts, ...policy === undefined ? {} : { smartTreeMemory: policy } }
+      await syncTools(client as unknown as Client, ctx, options, new Map())
+      const definition = ctx.tools.get('mcp__srv__memory')!
+      expect(definition.parameters).toEqual(memoryTool.inputSchema)
+      const args = { operation: 'anchor', keywords: ['x'], context: 'saved context', anchor_type: 'pattern' }
+      await definition.execute(args, direct)
+      expect(client.callTool).toHaveBeenCalledWith({ name: 'memory', arguments: args }, undefined, expect.any(Object))
+    } finally { await ctx.fiber.dispose() }
   })
 })
 

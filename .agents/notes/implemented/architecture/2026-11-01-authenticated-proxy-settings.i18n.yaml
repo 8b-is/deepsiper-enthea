@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-01-authenticated-proxy-settings.md
+2026-11-01-authenticated-proxy-settings.md: 77ff8857ed3de201fc2099846df1ecbc7984cf13
+2026-11-01-authenticated-proxy-settings.zh.md: e3aa6a76fd5eeb8c7d873bd76d53adc764745af3

@@ -5,6 +5,27 @@ import { describe, expect, it } from 'vitest'
 import { bridge } from '../src/http-bridge.ts'
 
 describe('HTTP bridge abort', () => {
+  it('removes the server-only proxy proof before RPC dispatch', async () => {
+    const request = Readable.from([]) as unknown as IncomingMessage
+    Object.assign(request, {
+      url: '/api/session.list', method: 'GET',
+      headers: { host: 'harness.example', 'x-dsh-authenticated-proxy': 'private-proof' },
+    })
+    const response = Object.assign(new EventEmitter(), {
+      writableEnded: false,
+      writeHead() { return this },
+      write() { return true },
+      end() { this.writableEnded = true; return this },
+    }) as unknown as ServerResponse
+    await bridge(request, response, {
+      async fetch(input) {
+        expect(input.headers.has('x-dsh-authenticated-proxy')).toBe(false)
+        expect(input.headers.get('host')).toBe('harness.example')
+        return Response.json({ ok: true })
+      },
+    })
+  })
+
   it('destroys a declared-oversize request instead of draining it', async () => {
     const destroyed: true[] = []
     const request = Readable.from([]) as unknown as IncomingMessage

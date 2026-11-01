@@ -6,7 +6,9 @@
     "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
   },
   "files": [
+    "src/access.ts",
     "src/api-path.ts",
+    "src/client/access.ts",
     "src/client/api.ts",
     "src/client/connection.ts",
     "src/client/fixture.ts",

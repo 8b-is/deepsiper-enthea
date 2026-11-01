@@ -9,6 +9,9 @@
   ],
   "references": [
     {
+      "path": "../../mcp/mcp-client"
+    },
+    {
       "path": "../../goal/goal"
     },
     {

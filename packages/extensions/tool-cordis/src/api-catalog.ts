@@ -901,6 +901,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'mcpServers',
+    summary: 'Saved configurations are durable through settings; connections are process-local and effect-owned.',
+    description: 'Saved configurations are durable through settings; connections are process-local and effect-owned.',
+    methods: [
+      {
+        signature: 'list(): McpServerStatus[]',
+        description: 'Read actual connection states, including a pending failed shutdown.',
+        parameters: [],
+        returns: 'Detached status rows without commands, credentials or raw transport errors.',
+      },
+      {
+        signature: 'async test(name: string, signal?: AbortSignal): Promise<{ toolCount: number; tools: string[] }>',
+        description: 'Discover tools using saved configuration without invoking tools or changing enabled. Connected servers reuse their existing client; disabled servers use a temporary client. Operations for one name serialize with edits, so stdio children cannot overlap.',
+        parameters: [{ name: 'name', description: 'Saved server key.' }, { name: 'signal', description: 'Optional caller cancellation; the saved connection timeout still applies.' }],
+        returns: 'Raw discovered names and their count; failures never include server diagnostics.',
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Storage-domain sidecar service.',
     description: 'Storage-domain sidecar service. It inspects persisted Session history and never creates or resumes an Agent or Session.',
@@ -2872,6 +2891,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ConfinedSandboxMode = Exclude<SandboxMode, \'danger-full-access\'>;',
   },
   {
+    name: 'ConnectionStatus',
+    declaration: 'export interface ConnectionStatus {\n    state: \'connecting\' | \'connected\' | \'reconnecting\' | \'error\';\n    toolCount: number;\n    error?: string;\n}',
+  },
+  {
     name: 'ConsensusResult',
     declaration: 'export interface ConsensusResult {\n    answer: string;\n    confidence: number;\n    supporters: string[];\n    unanimous: boolean;\n}',
   },
@@ -3418,6 +3441,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManualCompactAgentContext',
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
+  },
+  {
+    name: 'McpServerStatus',
+    declaration: 'export interface McpServerStatus {\n    name: string;\n    state: ConnectionStatus[\'state\'] | \'disabled\';\n    toolCount: number;\n    error?: string;\n}',
   },
   {
     name: 'Message',

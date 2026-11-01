@@ -16,7 +16,7 @@ export const inject = ['invariants']
 
 /**
  * No runtime invariant: MCP generations contribute through the tool registry, but the bridge
- * exposes no independent server-to-tool snapshot after an asynchronous resync.
+ * exposes counts rather than an independent server-to-tool membership snapshot after resync.
  */
 const install: InvariantInstaller = () => {}
 

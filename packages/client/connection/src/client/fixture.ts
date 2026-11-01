@@ -2943,6 +2943,14 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         return ok(request, {})
       },
     },
+    mcp: {
+      list: request => ok(request, { servers: [] }),
+      test: request => err(request, {
+        code: 'internal',
+        message: 'fixture: no MCP servers are configured',
+        details: {},
+      }),
+    },
     llm: {
       providers: request => ok(request, {
         providers: [
@@ -3126,6 +3134,8 @@ export class FixtureApiClient extends AbstractApiClient {
       case 'credentials.describe': return this.api.credentials.describe(request)
       case 'credentials.set': return this.api.credentials.set(request)
       case 'credentials.unset': return this.api.credentials.unset(request)
+      case 'mcp.list': return this.api.mcp.list(request)
+      case 'mcp.test': return this.api.mcp.test(request, signal)
       case 'llm.providers': return this.api.llm.providers(request)
       case 'llm.models': return this.api.llm.models(request)
       case 'llm.discoverModels': return this.api.llm.discoverModels(request, signal)

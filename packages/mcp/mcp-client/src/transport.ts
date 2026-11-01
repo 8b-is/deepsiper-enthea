@@ -36,6 +36,8 @@ export function createTransport(config: Config): Transport {
         args: config.args,
         env: buildChildEnv(config.env),
         cwd: config.cwd,
+        // Server diagnostics may echo credentials; never inherit them into Host logs.
+        stderr: 'ignore',
       })
     case 'streamable-http':
       // The MCP SDK's StreamableHTTPClientTransport has optional callback

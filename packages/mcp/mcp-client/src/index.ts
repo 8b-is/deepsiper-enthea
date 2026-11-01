@@ -18,6 +18,8 @@ import z from '@deepseek-ai/schemastery'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
 import type { ReconnectConfig } from './connection.ts'
+import type { SmartTreeMemoryPolicy } from './memory-policy.ts'
+export type { SmartTreeMemoryPolicy } from './memory-policy.ts'
 // Side-effect type import: declaration-merges `ctx.tools` onto Context.
 import type {} from '@deepseek-ai/dsh-tools'
 
@@ -35,14 +37,6 @@ const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60_000
 
 /** Valid `serverName`, kept below the public tool-name budget. */
 const SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/
-
-/**
- * Live `serverName` reservations per app, keyed off `ctx.root` (multiple apps
- * in one process — tests — must not see each other's names). A duplicate
- * namespace is a configuration error surfaced at plugin load, never silent
- * shadowing.
- */
-const activeServerNames = new WeakMap<Context, Set<string>>()
 
 // ---- Config ----
 
@@ -66,6 +60,10 @@ export interface StdioConfig {
   cwd: string
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /** Total initial handshake and discovery deadline; omission uses SDK request timeouts. */
+  connectTimeoutMs?: number
+  /** Explicit policy for Smart Tree's raw memory tool; omitted for generic MCP servers. */
+  smartTreeMemory?: SmartTreeMemoryPolicy
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -88,6 +86,10 @@ export interface StreamableHttpConfig {
   headers: Record<string, string>
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /** Total initial handshake and discovery deadline; omission uses SDK request timeouts. */
+  connectTimeoutMs?: number
+  /** Explicit policy for Smart Tree's raw memory tool; omitted for generic MCP servers. */
+  smartTreeMemory?: SmartTreeMemoryPolicy
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -112,7 +114,9 @@ export const Config = z.union([
     args: z.array(String).default([]),
     env: z.dict(String).default({}),
     cwd: z.string().default(''),
-    toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+    toolCallTimeoutMs: z.number().min(1).max(MAX_TIMER_DELAY_MS).default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+    connectTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS),
+    smartTreeMemory: z.union(['off', 'read-only', 'read-write']),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
   }),
@@ -121,7 +125,9 @@ export const Config = z.union([
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
     url: z.string().required(),
     headers: z.dict(String).default({}),
-    toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+    toolCallTimeoutMs: z.number().min(1).max(MAX_TIMER_DELAY_MS).default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+    connectTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS),
+    smartTreeMemory: z.union(['off', 'read-only', 'read-write']),
     failOnStartupError: z.boolean().default(false),
     reconnect: Reconnect,
   }),
@@ -142,23 +148,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // construction that bypassed Schemastery) rejects THIS instance before any
   // effect registers.
   const reconnect = resolveReconnectPolicy(config.reconnect, `mcp-client(${config.serverName}): reconnect`)
-
-  // Reserve the namespace next: a duplicate `serverName` fails THIS instance
-  // at load with an actionable error and leaves the earlier instance intact.
-  ctx.effect(() => {
-    let names = activeServerNames.get(ctx.root)
-    if (!names) {
-      names = new Set()
-      activeServerNames.set(ctx.root, names)
-    }
-    if (names.has(config.serverName)) {
-      throw new Error(
-        `mcp-client: serverName "${config.serverName}" is already in use by another mcp-client instance — pick a unique serverName in cordis.yml`,
-      )
-    }
-    names.add(config.serverName)
-    return () => void names.delete(config.serverName)
-  }, 'mcp-client.serverName')
 
   // The supervisor owns the client/transport generations, the reconnect
   // loop, and the live tool registrations; disposal stops reconnection,

@@ -169,6 +169,32 @@ type SettingsUpdateSource = 'update' | 'provider'
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — this section is byte-identical in both language sides of the page. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxmcpservers--mcpservers"></a>
+
+### `ctx.mcpServers` — `McpServers`
+
+Saved configurations are durable through settings; connections are process-local and effect-owned.
+
+```ts cordis-catalog
+/**
+ * Read actual connection states, including a pending failed shutdown.
+ * @returns Detached status rows without commands, credentials or raw transport errors.
+ */
+list(): McpServerStatus[]
+
+/**
+ * Discover tools using saved configuration without invoking tools or changing enabled.
+ * Connected servers reuse their existing client; disabled servers use a temporary client.
+ * Operations for one name serialize with edits, so stdio children cannot overlap.
+ * @param name - Saved server key.
+ * @param signal - Optional caller cancellation; the saved connection timeout still applies.
+ * @returns Raw discovered names and their count; failures never include server diagnostics.
+ */
+async test(name: string, signal?: AbortSignal): Promise<{ toolCount: number; tools: string[] }>
+```
+
+Source: [`packages/mcp/mcp-client/src/settings.ts:40`](../../packages/mcp/mcp-client/src/settings.ts)
+
 <a id="ctxsettings--settingsprovider-abstract-seam"></a>
 
 ### `ctx.settings` — `SettingsProvider` (abstract seam)

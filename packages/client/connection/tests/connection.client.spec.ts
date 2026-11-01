@@ -20,6 +20,78 @@ function subscribedFrame(lastSeq = 0) {
 }
 
 describe('connection lifecycle', () => {
+  it('publishes request access before connected callbacks and withdraws it during reconnect', async () => {
+    const api = new FakeApiClient()
+    const first = deferred<{ settings: boolean; native: boolean }>()
+    const readAccess = vi.fn()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue({ settings: false, native: false })
+    const seen: Array<boolean | undefined> = []
+    let current: boolean | undefined
+    const connected: Array<boolean | undefined> = []
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const controller = new ConnectionController(api, {
+      onAccess: (access) => { current = access?.settings; seen.push(current) },
+      onConnected: () => { connected.push(current) },
+    }, FAST, readAccess)
+    controller.start()
+    try {
+      await vi.waitFor(() => { expect(readAccess).toHaveBeenCalledOnce() })
+      expect(connected).toEqual([])
+      first.resolve({ settings: true, native: false })
+      await vi.waitFor(() => { expect(connected).toEqual([true]) })
+      api.failStreams(new Error('lost'))
+      await vi.waitFor(() => { expect(connected).toEqual([true, false]) })
+      expect(seen).toEqual([true, undefined, false])
+    } finally {
+      controller.stop()
+      warn.mockRestore()
+    }
+    expect(current).toBeUndefined()
+    expect(readAccess).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not publish late permissions after stop or announce a subscriber-stopped generation', async () => {
+    const api = new FakeApiClient()
+    const pending = deferred<{ settings: boolean; native: boolean }>()
+    const access = vi.fn()
+    const connected = vi.fn()
+    const controller = new ConnectionController(api, { onAccess: access, onConnected: connected }, FAST, () => pending.promise)
+    controller.start()
+    controller.stop()
+    pending.resolve({ settings: true, native: true })
+    await vi.waitFor(() => { expect(api.openMuxCount).toBe(0) })
+    expect(access.mock.calls.every(([value]) => value === undefined)).toBe(true)
+    expect(connected).not.toHaveBeenCalled()
+
+    let stoppedOnGrant = false
+    const stopped = new ConnectionController(new FakeApiClient(), {
+      onAccess: (value) => {
+        if (value !== undefined) { stoppedOnGrant = true; stopped.stop() }
+      },
+      onConnected: connected,
+    }, FAST, () => Promise.resolve({ settings: true, native: false }))
+    stopped.start()
+    await vi.waitFor(() => { expect(stoppedOnGrant).toBe(true) })
+    stopped.stop()
+    expect(connected).not.toHaveBeenCalled()
+  })
+
+  it('retries failed capability discovery without announcing an unauthorized generation', async () => {
+    const api = new FakeApiClient()
+    const readAccess = vi.fn()
+      .mockRejectedValueOnce(new Error('HTTP 403'))
+      .mockResolvedValue({ settings: false, native: false })
+    const connected = vi.fn()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const controller = new ConnectionController(api, { onConnected: connected }, FAST, readAccess)
+    controller.start()
+    try {
+      await vi.waitFor(() => { expect(connected).toHaveBeenCalledOnce() })
+      expect(readAccess).toHaveBeenCalledTimes(2)
+    } finally { controller.stop(); warn.mockRestore() }
+  })
+
   it('announces connected after describe + both streams open, then pumps frames to sinks', async () => {
     const api = new FakeApiClient()
     const muxSeen: string[] = []

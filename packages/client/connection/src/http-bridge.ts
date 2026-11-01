@@ -4,6 +4,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { AUTHENTICATED_PROXY_HEADER } from './authenticated-proxy.ts'
 
 /** Default carrier cap for all HTTP RPC bodies: sized for the default
  * aggregate image limit (100 MiB) after base64 expansion plus envelope
@@ -68,7 +69,8 @@ export async function bridge(
   requests; the fields are only optional on the client-side IncomingMessage type */
   const request = new Request(new URL(req.url ?? '/', 'http://dsh.internal'), {
     method: req.method ?? 'GET',
-    headers: Object.fromEntries(Object.entries(req.headers).filter(([, v]) => typeof v === 'string') as [string, string][]),
+    headers: Object.fromEntries(Object.entries(req.headers).filter(([key, value]) =>
+      key !== AUTHENTICATED_PROXY_HEADER && typeof value === 'string') as [string, string][]),
     ...chunks.length > 0 ? { body: Buffer.concat(chunks) } : {},
     signal: abort.signal,
   })

@@ -84,6 +84,52 @@ describe('connection client apply', () => {
     expect((await mount()).isLoopback).toBe(false)
   })
 
+  it('hydrates authenticated remote permissions from the endpoint before connected consumers run', async () => {
+    ;(globalThis as Win).location = { hostname: 'harness.example', search: '', origin: 'https://harness.example' }
+    ;(globalThis as WebSocketGlobal).WebSocket = FakeWebSocket as unknown as typeof WebSocket
+    const handle = await mount()
+    const describe = vi.spyOn(handle.api.host, 'describe').mockResolvedValue({
+      rpcId: RpcId('access-handshake'),
+      result: { ok: true, value: { version: 'test', cwd: '/host', attachedSessions: 0, canOpenPath: false } },
+    })
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ settings: true, native: false }))
+    const connected = vi.fn(() => {
+      expect(handle.isLoopback).toBe(false)
+      expect(handle.access.getSnapshot()).toEqual({ settings: true, native: false })
+    })
+    const loop = handle.start({ onConnected: connected })
+    try {
+      await vi.waitFor(() => { expect(connected).toHaveBeenCalledOnce() })
+      expect(fetch).toHaveBeenCalledWith(new URL('https://harness.example/api/access'), expect.objectContaining({ method: 'GET', cache: 'no-store' }))
+      expect(describe).toHaveBeenCalledOnce()
+    } finally { loop.stop(); fetch.mockRestore(); describe.mockRestore() }
+    expect(handle.access.getSnapshot()).toBeUndefined()
+  })
+
+  it('publishes fixture access before consumer reset without HTTP discovery and retracts it on stop', async () => {
+    ;(globalThis as Win).location = { hostname: 'harness.example', search: '?fixture' }
+    const fetch = vi.spyOn(globalThis, 'fetch')
+    const handle = await mount()
+    expect(handle.isLoopback).toBe(false)
+    expect(handle.access.getSnapshot()).toBeUndefined()
+    const seen: Array<boolean | undefined> = []
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const unsubscribeThrowing = handle.access.subscribe(() => { throw new Error('subscriber failed') })
+    const unsubscribe = handle.access.subscribe(() => { seen.push(handle.access.getSnapshot()?.settings) })
+    const connected = vi.fn(() => { expect(handle.access.getSnapshot()).toEqual({ settings: true, native: true }) })
+    const loop = handle.start({ onConnected: connected })
+    try {
+      await vi.waitFor(() => { expect(connected).toHaveBeenCalledOnce() })
+      expect(fetch).not.toHaveBeenCalled()
+      loop.stop()
+      expect(handle.access.getSnapshot()).toBeUndefined()
+      expect(seen).toEqual([true, undefined])
+      expect(error).toHaveBeenCalledTimes(2)
+    } finally {
+      unsubscribeThrowing(); unsubscribe(); loop.stop(); fetch.mockRestore(); error.mockRestore()
+    }
+  })
+
   it('start() hands out one loop, rejects a second consumer, and stop() aborts the streams', async () => {
     ;(globalThis as Win).location = { hostname: 'localhost', search: '?fixture' }
     const handle = await mount()
