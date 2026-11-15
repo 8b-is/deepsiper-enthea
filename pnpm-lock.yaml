@@ -64,8 +64,8 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1
       js-yaml:
-        specifier: ^5.4.3
-        version: 5.4.3
+        specifier: ^4.3.2
+        version: 4.3.2
       jscpd:
         specifier: ^5.0.12
         version: 5.0.12
@@ -304,8 +304,8 @@ importers:
         specifier: ^15.0.0
         version: 15.0.0
       js-yaml:
-        specifier: ^5.4.3
-        version: 5.4.3
+        specifier: ^4.3.2
+        version: 4.3.2
       node-addon-require-builtin:
         specifier: ^0.1.4
         version: 0.1.4
@@ -974,8 +974,8 @@ importers:
         specifier: ^4.0.3
         version: 4.0.3
       js-yaml:
-        specifier: ^5.4.3
-        version: 5.4.3
+        specifier: ^4.3.2
+        version: 4.3.2
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
@@ -5945,8 +5945,8 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
       js-yaml:
-        specifier: ^5.4.3
-        version: 5.4.3
+        specifier: ^4.3.2
+        version: 4.3.2
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
@@ -13662,10 +13662,6 @@ packages:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
     hasBin: true
 
-  js-yaml@5.4.3:
-    resolution: {integrity: sha512-yzzNtgczwgoVHNigCyKTXcQJU4Y8t/ikU4UxXW0BvrLfHTGWZhsNcOT2s/a7vn81/4KqVnNmHjaUEPlvWnNwVw==}
-    hasBin: true
-
   jscpd-darwin-arm64@5.0.12:
     resolution: {integrity: sha512-CQCDYhQY9yOGGeauzkRGYW/QtXurPCjfDkEhUoM/M5UdmpzxfG3i9mnNsaheJ0RdFRf73mL7JaLVRP8U2l5/kA==}
     cpu: [arm64]
@@ -19568,10 +19564,6 @@ snapshots:
   js-tokens@4.0.0: {}
 
   js-yaml@4.3.2:
-    dependencies:
-      argparse: 2.0.1
-
-  js-yaml@5.4.3:
     dependencies:
       argparse: 2.0.1
 
