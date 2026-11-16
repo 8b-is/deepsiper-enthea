@@ -22,6 +22,8 @@ function event(
   content?: unknown[],
   plugin = 'time-context',
 ): SessionEvent<'user/message'> {
+  const timeLine = text.split('\n\n').at(-1) ?? text
+  const memory = text.startsWith('MEM|8') ? text.slice(0, text.lastIndexOf('\n\n')) : 'MEM|8'
   return {
     type: 'user/message',
     seq: 0,
@@ -33,23 +35,18 @@ function event(
           kind: 'plugin',
           plugin,
           form: 'snapshot',
-          sections: [{ name: plugin, text }],
+          sections: [
+            { name: 'MEM|8', text: memory },
+            { name: 'time-context', text: timeLine },
+          ],
         }
         : { kind: 'plugin', plugin },
     }),
   }
 }
 
-function reading(
-  turn = '1',
-  step = '1',
-  baseline = 'model-visible message',
-  timestamp = '2026-07-14T00:00:00+00:00[UTC]',
-  browser = 'Browser time zone for this request: unavailable. Ask the user to clarify otherwise-unqualified dates and times.',
-): string {
-  return `Time sampled while preparing turn ${turn}, step ${step}: ${timestamp}\n`
-    + `${browser}\n`
-    + `Elapsed since the preceding ${baseline}: unavailable.`
+function reading(timestamp = '2026-07-14T00:00:00+00:00'): string {
+  return `MEM|8\n\n${timestamp}`
 }
 
 function preparing(turn: number, step: number, clientTimeZone?: string): Session {
@@ -80,7 +77,10 @@ function appendReading(session: Session, text: string): void {
       kind: 'plugin',
       plugin: 'time-context',
       form: 'snapshot',
-      sections: [{ name: 'time-context', text }],
+      sections: [
+        { name: 'MEM|8', text: 'MEM|8' },
+        { name: 'time-context', text: text.split('\n\n').at(-1) ?? text },
+      ],
     },
   }), { surfaceOp: 'append' })
 }
@@ -88,9 +88,7 @@ function appendReading(session: Session, text: string): void {
 describe('time-context invariants', () => {
   it('accepts a reading whose turn, step, baseline, and timestamp agree', async () => {
     const ctx = await setup()
-    const text = 'Time sampled while preparing turn 2, step 3: 2026-07-14T00:00:00+00:00[UTC]\n'
-      + 'Browser time zone for this request: unavailable. Ask the user to clarify otherwise-unqualified dates and times.\n'
-      + 'Elapsed since the preceding step context: 4m 2s.'
+    const text = reading()
     expect(() => { ctx.emit('session/event', preparing(2, 3), event(text)) }).not.toThrow()
   })
 

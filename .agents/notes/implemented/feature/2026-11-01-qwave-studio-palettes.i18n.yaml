@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-01-qwave-studio-palettes.md
+2026-11-01-qwave-studio-palettes.md: 22693f2055b9019fc7f4bbc727952e84a7916133
+2026-11-01-qwave-studio-palettes.zh.md: af883dc1d7ac3c97dd1a00a80daf75c2af6ae39a

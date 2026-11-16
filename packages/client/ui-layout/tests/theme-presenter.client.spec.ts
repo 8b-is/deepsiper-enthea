@@ -6,7 +6,8 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
-import { DARK_ATTRIBUTE, ThemePresenter } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
+import { DARK_ATTRIBUTE, ThemePresenter, WAVE_ATTRIBUTE } from '@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts'
+import { WAVE_ATTRIBUTE as THEME_WAVE_ATTRIBUTE } from '@deepseek-ai/dsh-client-ui-theme/src/wave-palettes.ts'
 
 const LIGHT_THEME_COLOR = 'rgb(255, 255, 255)'
 const DARK_THEME_COLOR = 'rgb(21, 21, 23)'
@@ -14,7 +15,7 @@ const DARK_THEME_COLOR = 'rgb(21, 21, 23)'
 function snapshot(colorScheme: 'light' | 'dark', tokens: Record<string, string> = {}): ThemeSnapshot {
   // The presenter must key off colorScheme, not the id — keep them distinct.
   const active = { id: `${colorScheme}-test`, colorScheme, tokens }
-  return { preference: colorScheme, active, themes: [active], revision: 1 }
+  return { preference: colorScheme, palette: 'classic' as const, active, themes: [active], revision: 1 }
 }
 
 function clearThemePresentation(): void {
@@ -29,6 +30,7 @@ beforeEach(() => {
   clearThemePresentation()
   document.documentElement.style.removeProperty('color-scheme')
   document.body.removeAttribute(DARK_ATTRIBUTE)
+  document.body.removeAttribute(WAVE_ATTRIBUTE)
   document.body.removeAttribute('style')
   const style = document.createElement('style')
   style.dataset.themePresenterTest = ''
@@ -87,5 +89,15 @@ describe('ThemePresenter', () => {
     expect(document.body.style.getPropertyValue('--dsw-alias-bg')).toBe('')
     expect(document.body.style.getPropertyValue('--foreign')).toBe('kept')
     expect(meta?.isConnected).toBe(false)
+    expect(document.body.hasAttribute(WAVE_ATTRIBUTE)).toBe(false)
+  })
+
+  it('projects a named wave palette and retracts classic', () => {
+    expect(WAVE_ATTRIBUTE).toBe(THEME_WAVE_ATTRIBUTE)
+    const presenter = new ThemePresenter()
+    presenter.apply({ ...snapshot('dark'), palette: 'ocean' })
+    expect(document.body.getAttribute(WAVE_ATTRIBUTE)).toBe('ocean')
+    presenter.apply(snapshot('dark'))
+    expect(document.body.hasAttribute(WAVE_ATTRIBUTE)).toBe(false)
   })
 })

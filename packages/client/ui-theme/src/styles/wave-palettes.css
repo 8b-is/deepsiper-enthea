@@ -1,0 +1,341 @@
+/* Qwave studio palettes. Colors and motion live here so feature CSS keeps using
+ * semantic aliases. `body[data-dsh-wave]` is more specific than the base
+ * `body` rules and follows design-platform.css, so it wins for both schemes.
+ * Parchment stays still. Every other palette drifts only when the user has
+ * not requested reduced motion. */
+
+[data-dsh-wave-swatch='classic'] {
+  --dsh-wave-swatch: var(--dsw-alias-brand-primary);
+}
+
+[data-dsh-wave-swatch='ocean'] {
+  --dsh-wave-swatch: #0b7c86;
+  --dsh-wave-accent: #0b7c86;
+}
+
+[data-dsh-wave-swatch='dra-starlight'] {
+  --dsh-wave-swatch: #c43b86;
+  --dsh-wave-accent: #c43b86;
+}
+
+[data-dsh-wave-swatch='phoenix-lattice'] {
+  --dsh-wave-swatch: #c2410c;
+  --dsh-wave-accent: #c2410c;
+}
+
+[data-dsh-wave-swatch='emerald-matrix'] {
+  --dsh-wave-swatch: #047857;
+  --dsh-wave-accent: #047857;
+}
+
+[data-dsh-wave-swatch='parchment-zen'] {
+  --dsh-wave-swatch: #8a5a2b;
+  --dsh-wave-accent: #8a5a2b;
+}
+
+[data-dsh-wave-swatch='cyberpunk-neon'] {
+  --dsh-wave-swatch: #0f766e;
+  --dsh-wave-accent: #0f766e;
+}
+
+body[data-dsh-wave='ocean'] {
+  --dsw-alias-bg-base: #e7f7f7e6;
+  --dsw-alias-bg-layer-1: #f4ffff;
+  --dsw-alias-bg-layer-2: #dff4f4;
+  --dsw-alias-bg-overlay: #f7ffff;
+  --dsw-alias-border-l1: #0b7c8624;
+  --dsw-alias-border-l2: #0b7c8640;
+  --dsw-alias-brand-primary: #0b7c86;
+  --dsw-alias-brand-text: #062026;
+  --dsw-alias-label-primary: #062026;
+  --dsw-alias-label-secondary: #3d6b70;
+  --dsw-alias-label-primary-bluish: #0b7c86;
+  --dsw-alias-button-primary-fill: #0b7c86;
+  --dsw-alias-button-primary-hover: #0a6a72;
+  --dsw-specific-sidebar-fill: #dff4f4;
+  --dsh-wave-accent: #0b7c86;
+  --dsh-wave-accent-2: #1f8f6a;
+  background-color: #e7f7f7;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 12% 100%, #6ef7f766 0%, #e7f7f700 70%),
+    radial-gradient(ellipse 60% 40% at 88% 0%, #a8ffcf55 0%, #e7f7f700 68%);
+  background-size: 180% 180%;
+}
+
+body[data-dsh-wave='ocean'][data-ds-dark-theme] {
+  --dsw-alias-bg-base: #02080de6;
+  --dsw-alias-bg-layer-1: #07141c;
+  --dsw-alias-bg-layer-2: #0b1c26;
+  --dsw-alias-bg-overlay: #0d2230;
+  --dsw-alias-border-l1: #6ef7f724;
+  --dsw-alias-border-l2: #6ef7f740;
+  --dsw-alias-brand-primary: #6ef7f7;
+  --dsw-alias-brand-text: #e8f7f7;
+  --dsw-alias-label-primary: #e8f7f7;
+  --dsw-alias-label-secondary: #9ed4d4;
+  --dsw-alias-label-primary-bluish: #6ef7f7;
+  --dsw-alias-button-primary-fill: #6ef7f7;
+  --dsw-alias-button-primary-hover: #a8ffcf;
+  --dsw-specific-sidebar-fill: #07141c;
+  --dsh-wave-accent: #6ef7f7;
+  --dsh-wave-accent-2: #a8ffcf;
+  background-color: #02080d;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 12% 100%, #6ef7f744 0%, #02080d00 70%),
+    radial-gradient(ellipse 60% 40% at 88% 0%, #a8ffcf33 0%, #02080d00 68%);
+}
+
+body[data-dsh-wave='dra-starlight'] {
+  --dsw-alias-bg-base: #fff1f8e6;
+  --dsw-alias-bg-layer-1: #fff7fb;
+  --dsw-alias-bg-layer-2: #ffe4f1;
+  --dsw-alias-bg-overlay: #fff8fc;
+  --dsw-alias-border-l1: #c43b8624;
+  --dsw-alias-border-l2: #c43b8640;
+  --dsw-alias-brand-primary: #c43b86;
+  --dsw-alias-brand-text: #2a1020;
+  --dsw-alias-label-primary: #2a1020;
+  --dsw-alias-label-secondary: #7a4a62;
+  --dsw-alias-label-primary-bluish: #c43b86;
+  --dsw-alias-button-primary-fill: #c43b86;
+  --dsw-alias-button-primary-hover: #a83274;
+  --dsw-specific-sidebar-fill: #ffe4f1;
+  --dsh-wave-accent: #ff9edb;
+  --dsh-wave-accent-2: #ffd6a5;
+  background-color: #fff1f8;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 18% 100%, #ff9edb66 0%, #fff1f800 70%),
+    radial-gradient(ellipse 55% 40% at 86% 8%, #ffd6a555 0%, #fff1f800 66%);
+  background-size: 180% 180%;
+}
+
+body[data-dsh-wave='dra-starlight'][data-ds-dark-theme] {
+  --dsw-alias-bg-base: #0f0616e6;
+  --dsw-alias-bg-layer-1: #1a0a22;
+  --dsw-alias-bg-layer-2: #24102e;
+  --dsw-alias-bg-overlay: #2a1236;
+  --dsw-alias-border-l1: #ff9edb24;
+  --dsw-alias-border-l2: #ff9edb40;
+  --dsw-alias-brand-primary: #ff9edb;
+  --dsw-alias-brand-text: #fdf0f8;
+  --dsw-alias-label-primary: #fdf0f8;
+  --dsw-alias-label-secondary: #e7c3d6;
+  --dsw-alias-label-primary-bluish: #ff9edb;
+  --dsw-alias-button-primary-fill: #ff9edb;
+  --dsw-alias-button-primary-hover: #ffd6a5;
+  --dsw-specific-sidebar-fill: #1a0a22;
+  --dsh-wave-accent: #ff9edb;
+  --dsh-wave-accent-2: #ffd6a5;
+  background-color: #0f0616;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 18% 100%, #ff9edb44 0%, #0f061600 70%),
+    radial-gradient(ellipse 55% 40% at 86% 8%, #ffd6a533 0%, #0f061600 66%);
+}
+
+body[data-dsh-wave='phoenix-lattice'] {
+  --dsw-alias-bg-base: #fff3ebe6;
+  --dsw-alias-bg-layer-1: #fff8f4;
+  --dsw-alias-bg-layer-2: #ffe4d6;
+  --dsw-alias-bg-overlay: #fff9f6;
+  --dsw-alias-border-l1: #c2410c24;
+  --dsw-alias-border-l2: #c2410c40;
+  --dsw-alias-brand-primary: #c2410c;
+  --dsw-alias-brand-text: #2a1208;
+  --dsw-alias-label-primary: #2a1208;
+  --dsw-alias-label-secondary: #7a4a32;
+  --dsw-alias-label-primary-bluish: #c2410c;
+  --dsw-alias-button-primary-fill: #c2410c;
+  --dsw-alias-button-primary-hover: #9a3412;
+  --dsw-specific-sidebar-fill: #ffe4d6;
+  --dsh-wave-accent: #ff7b39;
+  --dsh-wave-accent-2: #ffd166;
+  background-color: #fff3eb;
+  background-image:
+    radial-gradient(ellipse 78% 48% at 10% 100%, #ff7b3966 0%, #fff3eb00 70%),
+    radial-gradient(ellipse 50% 36% at 90% 0%, #ffd16655 0%, #fff3eb00 64%);
+  background-size: 180% 180%;
+}
+
+body[data-dsh-wave='phoenix-lattice'][data-ds-dark-theme] {
+  --dsw-alias-bg-base: #110504e6;
+  --dsw-alias-bg-layer-1: #1a0907;
+  --dsw-alias-bg-layer-2: #26110c;
+  --dsw-alias-bg-overlay: #30160f;
+  --dsw-alias-border-l1: #ff7b3924;
+  --dsw-alias-border-l2: #ff7b3940;
+  --dsw-alias-brand-primary: #ff7b39;
+  --dsw-alias-brand-text: #fff3eb;
+  --dsw-alias-label-primary: #fff3eb;
+  --dsw-alias-label-secondary: #f0c2a8;
+  --dsw-alias-label-primary-bluish: #ff7b39;
+  --dsw-alias-button-primary-fill: #ff7b39;
+  --dsw-alias-button-primary-hover: #ffd166;
+  --dsw-specific-sidebar-fill: #1a0907;
+  --dsh-wave-accent: #ff7b39;
+  --dsh-wave-accent-2: #ffd166;
+  background-color: #110504;
+  background-image:
+    radial-gradient(ellipse 78% 48% at 10% 100%, #ff7b3944 0%, #11050400 70%),
+    radial-gradient(ellipse 50% 36% at 90% 0%, #ffd16633 0%, #11050400 64%);
+}
+
+body[data-dsh-wave='emerald-matrix'] {
+  --dsw-font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', Consolas, 'PingFang SC', 'Microsoft YaHei';
+  --dsw-alias-bg-base: #e8fff5e6;
+  --dsw-alias-bg-layer-1: #f4fff9;
+  --dsw-alias-bg-layer-2: #d7f8e8;
+  --dsw-alias-bg-overlay: #f7fffb;
+  --dsw-alias-border-l1: #04785724;
+  --dsw-alias-border-l2: #04785740;
+  --dsw-alias-brand-primary: #047857;
+  --dsw-alias-brand-text: #04281a;
+  --dsw-alias-label-primary: #04281a;
+  --dsw-alias-label-secondary: #3d6b58;
+  --dsw-alias-label-primary-bluish: #047857;
+  --dsw-alias-button-primary-fill: #047857;
+  --dsw-alias-button-primary-hover: #065f46;
+  --dsw-specific-sidebar-fill: #d7f8e8;
+  --dsh-wave-accent: #00ff9f;
+  --dsh-wave-accent-2: #7ef9ff;
+  background-color: #e8fff5;
+  background-image:
+    linear-gradient(#04785714 1px, #e8fff500 1px),
+    linear-gradient(90deg, #04785714 1px, #e8fff500 1px),
+    radial-gradient(ellipse 70% 46% at 80% 100%, #00ff9f44 0%, #e8fff500 68%);
+  background-size: 28px 28px, 28px 28px, 180% 180%;
+}
+
+body[data-dsh-wave='emerald-matrix'][data-ds-dark-theme] {
+  --dsw-alias-bg-base: #020f09e6;
+  --dsw-alias-bg-layer-1: #04160e;
+  --dsw-alias-bg-layer-2: #072116;
+  --dsw-alias-bg-overlay: #0a2a1c;
+  --dsw-alias-border-l1: #00ff9f24;
+  --dsw-alias-border-l2: #00ff9f40;
+  --dsw-alias-brand-primary: #00ff9f;
+  --dsw-alias-brand-text: #e4fff3;
+  --dsw-alias-label-primary: #e4fff3;
+  --dsw-alias-label-secondary: #9ee8c8;
+  --dsw-alias-label-primary-bluish: #00ff9f;
+  --dsw-alias-button-primary-fill: #00ff9f;
+  --dsw-alias-button-primary-hover: #7ef9ff;
+  --dsw-specific-sidebar-fill: #04160e;
+  --dsh-wave-accent: #00ff9f;
+  --dsh-wave-accent-2: #7ef9ff;
+  background-color: #020f09;
+  background-image:
+    linear-gradient(#00ff9f18 1px, #020f0900 1px),
+    linear-gradient(90deg, #00ff9f18 1px, #020f0900 1px),
+    radial-gradient(ellipse 70% 46% at 80% 100%, #00ff9f33 0%, #020f0900 68%);
+  background-size: 28px 28px, 28px 28px, 180% 180%;
+}
+
+body[data-dsh-wave='parchment-zen'] {
+  --dsw-font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Songti SC', 'SimSun', serif;
+  --dsw-alias-bg-base: #f5ebd6;
+  --dsw-alias-bg-layer-1: #faf3e4;
+  --dsw-alias-bg-layer-2: #efe2c8;
+  --dsw-alias-bg-overlay: #fbf6ea;
+  --dsw-alias-border-l1: #8a5a2b24;
+  --dsw-alias-border-l2: #8a5a2b40;
+  --dsw-alias-brand-primary: #8a5a2b;
+  --dsw-alias-brand-text: #2a2118;
+  --dsw-alias-label-primary: #2a2118;
+  --dsw-alias-label-secondary: #6e5844;
+  --dsw-alias-label-primary-bluish: #8a5a2b;
+  --dsw-alias-button-primary-fill: #8a5a2b;
+  --dsw-alias-button-primary-hover: #6f4620;
+  --dsw-specific-sidebar-fill: #efe2c8;
+  --dsh-wave-accent: #ebcb8b;
+  --dsh-wave-accent-2: #d08770;
+  background-color: #f5ebd6;
+  background-image: radial-gradient(ellipse 70% 40% at 50% 100%, #d0877033 0%, #f5ebd600 70%);
+}
+
+body[data-dsh-wave='parchment-zen'][data-ds-dark-theme] {
+  --dsw-alias-bg-base: #18130d;
+  --dsw-alias-bg-layer-1: #221b13;
+  --dsw-alias-bg-layer-2: #2c2319;
+  --dsw-alias-bg-overlay: #34291e;
+  --dsw-alias-border-l1: #ebcb8b24;
+  --dsw-alias-border-l2: #ebcb8b40;
+  --dsw-alias-brand-primary: #ebcb8b;
+  --dsw-alias-brand-text: #f5ebd6;
+  --dsw-alias-label-primary: #f5ebd6;
+  --dsw-alias-label-secondary: #d7c4a4;
+  --dsw-alias-label-primary-bluish: #ebcb8b;
+  --dsw-alias-button-primary-fill: #ebcb8b;
+  --dsw-alias-button-primary-hover: #d08770;
+  --dsw-specific-sidebar-fill: #221b13;
+  --dsh-wave-accent: #ebcb8b;
+  --dsh-wave-accent-2: #d08770;
+  background-color: #18130d;
+  background-image: radial-gradient(ellipse 70% 40% at 50% 100%, #d0877033 0%, #18130d00 70%);
+}
+
+body[data-dsh-wave='cyberpunk-neon'] {
+  --dsw-alias-bg-base: #f3f7ffe6;
+  --dsw-alias-bg-layer-1: #f8fbff;
+  --dsw-alias-bg-layer-2: #e5f4f3;
+  --dsw-alias-bg-overlay: #f7fbff;
+  --dsw-alias-border-l1: #0f766e24;
+  --dsw-alias-border-l2: #be185d40;
+  --dsw-alias-brand-primary: #0f766e;
+  --dsw-alias-brand-text: #14061f;
+  --dsw-alias-label-primary: #14061f;
+  --dsw-alias-label-secondary: #5b4a68;
+  --dsw-alias-label-primary-bluish: #0f766e;
+  --dsw-alias-button-primary-fill: #0f766e;
+  --dsw-alias-button-primary-hover: #be185d;
+  --dsw-specific-sidebar-fill: #e5f4f3;
+  --dsh-wave-accent: #00f5d4;
+  --dsh-wave-accent-2: #f15bb5;
+  background-color: #f3f7ff;
+  background-image:
+    radial-gradient(ellipse 70% 46% at 8% 100%, #00f5d455 0%, #f3f7ff00 68%),
+    radial-gradient(ellipse 60% 42% at 92% 0%, #f15bb544 0%, #f3f7ff00 66%);
+  background-size: 180% 180%;
+}
+
+body[data-dsh-wave='cyberpunk-neon'][data-ds-dark-theme] {
+  --dsw-alias-bg-base: #060212e6;
+  --dsw-alias-bg-layer-1: #0c041c;
+  --dsw-alias-bg-layer-2: #14082a;
+  --dsw-alias-bg-overlay: #1a0c34;
+  --dsw-alias-border-l1: #00f5d424;
+  --dsw-alias-border-l2: #f15bb540;
+  --dsw-alias-brand-primary: #00f5d4;
+  --dsw-alias-brand-text: #f0f8ff;
+  --dsw-alias-label-primary: #f0f8ff;
+  --dsw-alias-label-secondary: #c9d7ea;
+  --dsw-alias-label-primary-bluish: #00f5d4;
+  --dsw-alias-button-primary-fill: #00f5d4;
+  --dsw-alias-button-primary-hover: #f15bb5;
+  --dsw-specific-sidebar-fill: #0c041c;
+  --dsh-wave-accent: #00f5d4;
+  --dsh-wave-accent-2: #f15bb5;
+  background-color: #060212;
+  background-image:
+    radial-gradient(ellipse 70% 46% at 8% 100%, #00f5d444 0%, #06021200 68%),
+    radial-gradient(ellipse 60% 42% at 92% 0%, #f15bb533 0%, #06021200 66%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body[data-dsh-wave='ocean'],
+  body[data-dsh-wave='dra-starlight'],
+  body[data-dsh-wave='phoenix-lattice'],
+  body[data-dsh-wave='emerald-matrix'],
+  body[data-dsh-wave='cyberpunk-neon'] {
+    animation: dsh-wave-drift 18000ms ease-in-out infinite alternate;
+  }
+}
+
+@keyframes dsh-wave-drift {
+  0% {
+    background-position: 0% 40%, 100% 0%, 0% 0%;
+  }
+
+  100% {
+    background-position: 100% 60%, 0% 20%, 28px 28px;
+  }
+}

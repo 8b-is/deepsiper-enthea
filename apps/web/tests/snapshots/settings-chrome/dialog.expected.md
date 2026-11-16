@@ -39,6 +39,15 @@
   - button "跟随系统" [pressed]:
     - img
     - text: 跟随系统
+  - text: 波浪主题
+  - group "波浪主题":
+    - button "经典" [pressed]
+    - button "深海"
+    - button "星光玫瑰"
+    - button "凤凰晶格"
+    - button "翡翠矩阵"
+    - button "暖纸禅意"
+    - button "赛博霓虹"
   - text: 繁忙时 Enter 键行为 仅在智能体运行时生效；Cmd/Ctrl+Enter 使用另一行为
   - button "排队发送":
     - text: 排队发送

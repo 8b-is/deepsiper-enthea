@@ -3,6 +3,7 @@
 import { runInNewContext } from 'node:vm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { injectBootTheme } from '../src/boot-theme.ts'
+import { WAVE_ATTRIBUTE } from '../src/wave-palettes.ts'
 import type { ThemePreference } from '../src/theme-settings.ts'
 
 const DARK_ATTRIBUTE = 'data-ds-dark-theme'
@@ -27,6 +28,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   document.documentElement.style.removeProperty('color-scheme')
   document.body.removeAttribute(DARK_ATTRIBUTE)
+  document.body.removeAttribute(WAVE_ATTRIBUTE)
 })
 
 describe('theme boot index transform', () => {
@@ -62,6 +64,14 @@ describe('theme boot index transform', () => {
     executeBootstrap()
     expect(document.documentElement.style.colorScheme).toBe('light')
     expect(document.body.hasAttribute(DARK_ATTRIBUTE)).toBe(false)
+  })
+
+  it('applies a named wave palette before paint and clears classic', () => {
+    mockSystemDark(true)
+    executeBootstrap({ preference: 'dark', palette: 'cyberpunk-neon' })
+    expect(document.body.getAttribute(WAVE_ATTRIBUTE)).toBe('cyberpunk-neon')
+    executeBootstrap({ preference: 'light', palette: 'classic' })
+    expect(document.body.hasAttribute(WAVE_ATTRIBUTE)).toBe(false)
   })
 
   it('appends the script to a body-less fragment', () => {

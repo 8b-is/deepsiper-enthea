@@ -54,6 +54,13 @@ describe('web shell base.css', () => {
     }
   })
 
+  it('imports wave palettes after the token sheet they override', () => {
+    const platform = imports.indexOf(`${THEME_PACKAGE}/styles/design-platform.css`)
+    const wave = imports.indexOf(`${THEME_PACKAGE}/styles/wave-palettes.css`)
+    expect(platform).toBeGreaterThanOrEqual(0)
+    expect(wave).toBeGreaterThan(platform)
+  })
+
   it('imports the scrollbar sheet after the token sheet it reads', () => {
     // Both sheets bind on `body`, so with scrollbar.css first the alias tokens
     // would still resolve; the order encodes the dependency direction so a

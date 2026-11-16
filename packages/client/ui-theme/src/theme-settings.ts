@@ -1,6 +1,12 @@
 /** Theme preferences stored in the Host user-settings document. */
 
 import z from '@deepseek-ai/schemastery'
+import { DEFAULT_PALETTE, THEME_PALETTE_FIELD, WAVE_PALETTES, type WavePalette } from './wave-palettes.ts'
+
+export {
+  DEFAULT_PALETTE, THEME_PALETTE_FIELD, WAVE_ATTRIBUTE, WAVE_PALETTES, isWavePalette,
+  type WavePalette,
+} from './wave-palettes.ts'
 
 /** Built-in preferences accepted at the registry and settings boundaries. */
 export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const
@@ -21,11 +27,14 @@ export const DEFAULT_PREFERENCE: ThemePreference = 'system'
 export interface ThemeSettings {
   /** Selected built-in preference. */
   preference: ThemePreference
+  /** Selected Qwave studio palette. `classic` keeps the base sheets. */
+  palette: WavePalette
 }
 
 /** Durable theme schema; also the wire envelope the browser scope validates against. */
 export const ThemeSettingsSchema: z<ThemeSettings> = z.object({
   [THEME_PREFERENCE_FIELD]: z.union([...THEME_PREFERENCES]).default(DEFAULT_PREFERENCE),
+  [THEME_PALETTE_FIELD]: z.union([...WAVE_PALETTES]).default(DEFAULT_PALETTE),
 })
 
 /**

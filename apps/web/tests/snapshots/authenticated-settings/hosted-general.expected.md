@@ -38,6 +38,15 @@
   - button "System":
     - img
     - text: System
+  - text: Wave theme
+  - group "Wave theme":
+    - button "Classic" [pressed]
+    - button "Ocean"
+    - button "Dra Starlight"
+    - button "Phoenix Lattice"
+    - button "Emerald Matrix"
+    - button "Parchment Zen"
+    - button "Cyberpunk Neon"
   - text: Enter behavior while busy Busy only; Cmd/Ctrl+Enter uses the other behavior
   - button "Queue":
     - text: Queue

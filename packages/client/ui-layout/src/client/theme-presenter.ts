@@ -2,7 +2,8 @@
  * Global theme DOM applier: projects the resolved ThemeSnapshot onto the
  * document — `html { color-scheme }` for native UA chrome (scrollbars, form
  * controls), `body[data-ds-dark-theme]` for the token palette, the active
- * theme's alias-token overrides as inline CSS variables on body, and one
+ * theme's alias-token overrides as inline CSS variables on body,
+ * `body[data-dsh-wave]` for a named Qwave studio palette, and one
  * presenter-owned `meta[name="theme-color"]` for surrounding browser UI. Pure
  * DOM writes, no React involvement; the presenter only ever retracts what it
  * wrote itself, so foreign attributes, metadata, and inline styles survive.
@@ -11,6 +12,9 @@ import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 
 /** Body attribute selecting the dark base palette in the token stylesheets. */
 export const DARK_ATTRIBUTE = 'data-ds-dark-theme'
+
+/** Body attribute selecting a named Qwave studio palette. Matches ui-theme's WAVE_ATTRIBUTE. */
+export const WAVE_ATTRIBUTE = 'data-dsh-wave'
 
 /** Applies theme snapshots to the document; one instance per plugin fiber. */
 export class ThemePresenter {
@@ -40,6 +44,8 @@ export class ThemePresenter {
     const body = document.body
     if (scheme === 'dark') body.setAttribute(DARK_ATTRIBUTE, '')
     else body.removeAttribute(DARK_ATTRIBUTE)
+    if (snapshot.palette === 'classic') body.removeAttribute(WAVE_ATTRIBUTE)
+    else body.setAttribute(WAVE_ATTRIBUTE, snapshot.palette)
     for (const name of this.appliedTokens) body.style.removeProperty(name)
     this.appliedTokens = []
     for (const [name, value] of Object.entries(snapshot.active.tokens)) {
@@ -55,6 +61,7 @@ export class ThemePresenter {
     document.documentElement.style.removeProperty('color-scheme')
     const body = document.body
     body.removeAttribute(DARK_ATTRIBUTE)
+    body.removeAttribute(WAVE_ATTRIBUTE)
     for (const name of this.appliedTokens) body.style.removeProperty(name)
     this.appliedTokens = []
     this.themeColorMeta.remove()

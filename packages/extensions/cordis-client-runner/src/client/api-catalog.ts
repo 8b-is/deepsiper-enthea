@@ -246,6 +246,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'id', description: 'a registered theme id or `system`; unknown ids throw.' }],
       },
       {
+        signature: 'setPalette(id: string): void',
+        description: 'Switch the wave palette. Built-in palettes are written through the settings scope and every accepted value emits `theme/change`.',
+        parameters: [{ name: 'id', description: 'a built-in wave palette id; unknown ids throw.' }],
+      },
+      {
         signature: 'register(definition: ThemeDefinition): () => void',
         description: 'Register a theme. Duplicate id throws (single occupant per id; the built-in pair counts; `system` is a preference, not a registrable id).',
         parameters: [{ name: 'definition', description: 'theme id, colorScheme, and alias-token overrides.' }],
@@ -815,7 +820,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ThemeSnapshot',
-    declaration: 'export interface ThemeSnapshot {\n    preference: ThemePreference;\n    active: ThemeDefinition;\n    themes: readonly ThemeDefinition[];\n    revision: number;\n}',
+    declaration: 'export interface ThemeSnapshot {\n    preference: ThemePreference;\n    palette: WavePalette;\n    active: ThemeDefinition;\n    themes: readonly ThemeDefinition[];\n    revision: number;\n}',
   },
   {
     name: 'ThemeTokenModes',
@@ -864,6 +869,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'UserMessageNode',
     declaration: 'export interface UserMessageNode {\n    kind: \'user\';\n    seq: number;\n    time: number;\n    content: readonly ContentBlock[];\n    source: unknown;\n}',
+  },
+  {
+    name: 'WavePalette',
+    declaration: 'export type WavePalette = typeof WAVE_PALETTES[number];',
   },
 ]
 

@@ -55,3 +55,70 @@
   background: var(--dsw-alias-bg-module-platform);
   border-color: var(--dsw-static-neutral-bluish-400);
 }
+
+.waveTitle {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.chip:hover:not(.selected) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--dsh-wave-accent, var(--dsw-alias-brand-primary));
+  outline-offset: 2px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--dsh-wave-swatch, var(--dsw-alias-brand-primary));
+}
+
+.chip.selected {
+  border-color: var(--dsh-wave-accent, var(--dsw-static-neutral-bluish-400));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chip.selected {
+    animation: dsh-chip-glow 2400ms ease-in-out infinite alternate;
+  }
+}
+
+@keyframes dsh-chip-glow {
+  0% {
+    box-shadow: 0 0 0 1px var(--dsh-wave-accent, var(--dsw-alias-border-l2));
+  }
+
+  100% {
+    box-shadow: 0 0 12px 1px var(--dsh-wave-accent, transparent);
+  }
+}

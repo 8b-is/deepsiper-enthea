@@ -123,9 +123,12 @@ describe('ui-theme apply', () => {
     expect(b.slots.entries(SLOT).find(e => e.component === AppearanceRow)!.locale).toBe(SETTINGS_NS)
 
     face.setTheme('system')
+    face.setPalette('ocean')
     expect(theme.getTheme().preference).toBe('system')
+    expect(theme.getTheme().palette).toBe('ocean')
     expect(instance.getSnapshot().preference).toBe('system')
-    await vi.waitFor(() => { expect(b.mutate).toHaveBeenCalledTimes(2) })
+    expect(instance.getSnapshot().palette).toBe('ocean')
+    await vi.waitFor(() => { expect(b.mutate).toHaveBeenCalledTimes(3) })
   })
 
   it('loads Host settings at boot, refreshes its namespace, and keeps remote browsers process-local', async () => {

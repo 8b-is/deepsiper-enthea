@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { SettingsProvider, settingsNamespace, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import {
-  DEFAULT_PREFERENCE, THEME_SETTINGS_NAMESPACE, apply,
+  DEFAULT_PALETTE, DEFAULT_PREFERENCE, THEME_SETTINGS_NAMESPACE, apply,
 } from '@deepseek-ai/dsh-client-ui-theme'
 
 class MemorySettings extends SettingsProvider {
@@ -21,10 +21,11 @@ describe('ui-theme host', () => {
     const fiber = ctx.plugin({ apply })
     await fiber.await()
     const ns = settingsNamespace(THEME_SETTINGS_NAMESPACE)
-    expect(ctx.settings.get(ns)).toEqual({ preference: DEFAULT_PREFERENCE })
-    await ctx.settings.update(ns, { preference: 'dark' })
-    expect(ctx.settings.get(ns)).toEqual({ preference: 'dark' })
-    await expect(ctx.settings.update(ns, { preference: 'sepia' })).rejects.toThrow()
+    expect(ctx.settings.get(ns)).toEqual({ preference: DEFAULT_PREFERENCE, palette: DEFAULT_PALETTE })
+    await ctx.settings.update(ns, { preference: 'dark', palette: 'ocean' })
+    expect(ctx.settings.get(ns)).toEqual({ preference: 'dark', palette: 'ocean' })
+    await expect(ctx.settings.update(ns, { preference: 'sepia', palette: 'ocean' })).rejects.toThrow()
+    await expect(ctx.settings.update(ns, { preference: 'dark', palette: 'sepia' })).rejects.toThrow()
     await fiber.dispose()
     expect(ctx.settings.describe().map(row => row.ns)).not.toContain(ns)
   })
@@ -43,8 +44,10 @@ describe('ui-theme host', () => {
     const fiber = ctx.plugin({ apply })
     await fiber.await()
     expect(transform?.('<body></body>')).toContain('const preference = "system"')
-    await ctx.settings.update(settingsNamespace(THEME_SETTINGS_NAMESPACE), { preference: 'dark' })
+    expect(transform?.('<body></body>')).toContain('const palette = "classic"')
+    await ctx.settings.update(settingsNamespace(THEME_SETTINGS_NAMESPACE), { preference: 'dark', palette: 'ocean' })
     expect(transform?.('<body></body>')).toContain('const preference = "dark"')
+    expect(transform?.('<body></body>')).toContain('const palette = "ocean"')
     await fiber.dispose()
     expect(disposed).toBe(true)
     expect(transform?.('<body></body>')).toContain('const preference = "system"')

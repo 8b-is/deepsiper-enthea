@@ -10,11 +10,10 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
+import { deriveBrowserTimeZoneContext } from './request-zone.ts'
 import {
-  deriveBrowserTimeZoneContext,
-  renderBrowserTimeZoneContext,
-} from './request-zone.ts'
-import type { BrowserTimeZoneContext } from './request-zone.ts'
+  findMem8, lastContextExcerpt, memoryKeywords, renderMem8,
+} from './mem8.ts'
 import { createTimestampFormatter, formatTimestamp } from './timestamp.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
@@ -29,58 +28,20 @@ export interface Config {
   timeZone?: string
   /** Minimum milliseconds between durable injections in one session. Omit or set to 0 to inject at every eligible step. */
   refreshIntervalMs?: number
+  /** Smart Tree executable used for a bounded MEM|8 lookup. Omit to inject keywords and last context only. */
+  memoryCommand?: string
 }
 
 /** Schemastery validation for {@link Config}. */
 export const Config: z<Config> = z.object({
   timeZone: z.string(),
   refreshIntervalMs: z.number(),
+  memoryCommand: z.string(),
 })
 
-/** Format a non-negative elapsed millisecond count as compact whole-second units. */
-function formatDuration(elapsedMs: number): string {
-  let seconds = Math.floor(Math.max(0, elapsedMs) / 1000)
-  const days = Math.floor(seconds / 86_400)
-  seconds %= 86_400
-  const hours = Math.floor(seconds / 3600)
-  seconds %= 3600
-  const minutes = Math.floor(seconds / 60)
-  seconds %= 60
-  const parts: string[] = []
-  if (days > 0) parts.push(`${days}d`)
-  if (hours > 0) parts.push(`${hours}h`)
-  if (minutes > 0) parts.push(`${minutes}m`)
-  parts.push(`${seconds}s`)
-  return parts.join(' ')
-}
-
-/** Find the latest model-visible event, excluding this plugin's pending append. */
-function precedingMessageTime(agent: Agent): number | undefined {
-  for (const event of [...agent.session.events].reverse()) {
-    switch (event.type) {
-      case 'user/message':
-      case 'assistant/message':
-      case 'tool/result':
-        return event.time
-      default:
-        // Merge-extensible session events: non-surface records are not messages.
-        break
-    }
-  }
-  return undefined
-}
-
-/** Find the preceding time-context event within the open turn. */
-function precedingStepContextTime(agent: Agent, turn: number): number | undefined {
-  for (const event of [...agent.session.events].reverse()) {
-    if (event.type === 'turn/start' && event.data.turn === turn) return undefined
-    if (event.type === 'user/message'
-      && event.data.source.kind === 'plugin'
-      && event.data.source.plugin === name) {
-      return event.time
-    }
-  }
-  return undefined
+/** Plain text from one message, ignoring non-text blocks. */
+function messageText(message: UserMessage): string {
+  return message.content.flatMap(block => block.type === 'text' ? [block.text] : []).join(' ')
 }
 
 /** Find this plugin's latest durable injection, including a shadowed surface event. */
@@ -107,21 +68,9 @@ function requestMessages(agent: Agent, turn: number, proposed: readonly UserMess
   return [...entered, ...proposed]
 }
 
-function renderText(
-  now: number,
-  turn: number,
-  step: number,
-  previous: number | undefined,
-  formatter: Intl.DateTimeFormat,
-  timeZone: string,
-  browserContext: BrowserTimeZoneContext,
-): string {
-  const elapsed = previous === undefined ? 'unavailable' : formatDuration(now - previous)
-  const baseline = step === 1 ? 'model-visible message' : 'step context'
-  const browserText = renderBrowserTimeZoneContext(browserContext)
-  return `Time sampled while preparing turn ${turn}, step ${step}: ${formatTimestamp(now, formatter, timeZone)}\n`
-    + `${browserText}\n`
-    + `Elapsed since the preceding ${baseline}: ${elapsed}.`
+/** ISO 8601 local time with a numeric offset. The zone name is not repeated. */
+function standardTime(now: number, formatter: Intl.DateTimeFormat, timeZone: string): string {
+  return formatTimestamp(now, formatter, timeZone).replace(/\[[^\]]+\]$/, '')
 }
 
 /** Reject refresh intervals that cannot represent an exact elapsed-millisecond threshold. */
@@ -168,7 +117,7 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.on('agent/pre-step', async (
-    { agent, turn, step, signal },
+    { agent, turn, signal },
     next,
   ): Promise<PreStepDecision> => {
     const decision = await next()
@@ -180,28 +129,40 @@ export function apply(ctx: Context, config: Config): void {
         && now >= lastInjection
         && now - lastInjection < refreshIntervalMs) return decision
     }
-    const previous = step === 1
-      ? precedingMessageTime(agent)
-      : precedingStepContextTime(agent, turn)
     const messages = requestMessages(agent, turn, decision.messages)
     const browser = deriveBrowserTimeZoneContext(messages)
     const selectedTimeZone = browser.kind === 'resolved' ? browser.timeZone : fallbackTimeZone
-    const text = renderText(
-      now,
-      turn,
-      step,
-      previous,
-      formatterFor(selectedTimeZone),
-      selectedTimeZone,
-      browser,
-    )
+    const time = standardTime(now, formatterFor(selectedTimeZone), selectedTimeZone)
+    const latest = [...messages].reverse().find(message => message.source.kind === 'user')
+    const previous = [...agent.session.events].reverse().find(event =>
+      event.type === 'assistant/message' || (event.type === 'user/message' && event.data.source.kind === 'user'))
+    const previousText = previous === undefined
+      ? ''
+      : previous.type === 'user/message'
+        ? messageText(previous.data)
+        : previous.data.message.content.flatMap(block => block.type === 'text' ? [block.text] : []).join(' ')
+    const keywords = memoryKeywords(`${latest === undefined ? '' : messageText(latest)} ${previousText}`)
+    const last = lastContextExcerpt(previousText)
+    const recall = config.memoryCommand === undefined
+      ? undefined
+      : await findMem8(config.memoryCommand, agent.session.header.cwd, keywords)
+    const memory = renderMem8(keywords, last, recall)
+    const text = `${memory}\n\n${time}`
     return {
       kind: 'enter',
       messages: [
         ...decision.messages,
         createUserMessage({
           content: [{ type: 'text', text }],
-          source: { kind: 'plugin', plugin: name, form: 'snapshot', sections: [{ name, text }] },
+          source: {
+            kind: 'plugin',
+            plugin: name,
+            form: 'snapshot',
+            sections: [
+              { name: 'MEM|8', text: memory },
+              { name, text: time },
+            ],
+          },
         }),
       ],
     }

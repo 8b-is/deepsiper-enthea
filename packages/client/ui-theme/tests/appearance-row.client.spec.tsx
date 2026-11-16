@@ -17,6 +17,14 @@ const COPY: Record<string, string> = {
   'appearance.light': 'Light',
   'appearance.dark': 'Dark',
   'appearance.system': 'System',
+  'appearance.wave': 'Wave theme',
+  'appearance.palette.classic': 'Classic',
+  'appearance.palette.ocean': 'Ocean',
+  'appearance.palette.dra-starlight': 'Dra Starlight',
+  'appearance.palette.phoenix-lattice': 'Phoenix Lattice',
+  'appearance.palette.emerald-matrix': 'Emerald Matrix',
+  'appearance.palette.parchment-zen': 'Parchment Zen',
+  'appearance.palette.cyberpunk-neon': 'Cyberpunk Neon',
 }
 
 /** Empty global standard-kit hooks (the row reads neither). */
@@ -36,8 +44,9 @@ function emptyWorkspaces() {
 function mount(preference: ThemePreference = 'system') {
   // Real store instance — the sanctioned zero-machinery path for tests.
   const store = createAppearanceRowStore().create()
-  store.actions.sync(preference, 0)
+  store.actions.sync(preference, 'classic', 0)
   const setTheme = vi.fn()
+  const setPalette = vi.fn()
   const props: AppearanceRowComponentProps = {
     useSessions: emptySessions(),
     useWorkspaces: emptyWorkspaces(),
@@ -45,9 +54,10 @@ function mount(preference: ThemePreference = 'system') {
     actions: store.actions,
     t: (key: string) => COPY[key] ?? key,
     setTheme,
+    setPalette,
   }
   render(<AppearanceRow {...props} />)
-  return { store, setTheme }
+  return { store, setTheme, setPalette }
 }
 
 const pressed = (name: RegExp): string | null =>
@@ -68,8 +78,19 @@ describe('AppearanceRow', () => {
     expect(b.setTheme).toHaveBeenCalledWith('light')
     // No store write yet: selection is unchanged.
     expect(pressed(/Dark/)).toBe('true')
-    act(() => { b.store.actions.sync('light', 1) })
+    act(() => { b.store.actions.sync('light', 'classic', 1) })
     expect(pressed(/Light/)).toBe('true')
     expect(pressed(/Dark/)).toBe('false')
+  })
+
+  it('renders the Qwave palette chips and routes a click to setPalette', () => {
+    const b = mount()
+    expect(pressed(/Classic/)).toBe('true')
+    expect(pressed(/Ocean/)).toBe('false')
+    fireEvent.click(screen.getByRole('button', { name: /Ocean/ }))
+    expect(b.setPalette).toHaveBeenCalledWith('ocean')
+    expect(pressed(/Classic/)).toBe('true')
+    act(() => { b.store.actions.sync('system', 'ocean', 1) })
+    expect(pressed(/Ocean/)).toBe('true')
   })
 })

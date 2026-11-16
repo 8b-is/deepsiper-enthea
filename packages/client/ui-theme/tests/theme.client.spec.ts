@@ -192,6 +192,20 @@ describe('ThemeRuntime', () => {
     }
   })
 
+  it('persists a built-in wave palette and rejects an unknown id', () => {
+    const { theme, events, host } = make()
+    expect(theme.getTheme().palette).toBe('classic')
+    theme.setPalette('ocean')
+    expect(theme.getTheme().palette).toBe('ocean')
+    expect(host.set).toHaveBeenCalledWith('palette', 'ocean')
+    theme.setPalette('ocean')
+    expect(events).toHaveLength(1)
+    host.publish({ value: { preference: 'dark', palette: 'phoenix-lattice' }, revision: 2 })
+    expect(theme.getTheme()).toMatchObject({ preference: 'dark', palette: 'phoenix-lattice' })
+    expect(host.set).toHaveBeenCalledOnce()
+    expect(() => { theme.setPalette('sepia') }).toThrow('not registered')
+  })
+
   it('context dispose releases the scope subscription', async () => {
     const { ctx, host } = make()
     expect(host.listenerCount()).toBe(1)

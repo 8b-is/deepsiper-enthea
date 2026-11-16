@@ -3,21 +3,12 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import type { InvariantFailure, InvariantInstaller } from '@deepseek-ai/dsh-invariants'
-import {
-  deriveBrowserTimeZoneContext,
-  renderBrowserTimeZoneContext,
-} from './request-zone.ts'
+import { deriveBrowserTimeZoneContext } from './request-zone.ts'
 import { createTimestampFormatter, formatTimestamp } from './timestamp.ts'
 
 const PACKAGE_NAME = '@deepseek-ai/dsh-time-context'
 const SOURCE_NAME = 'time-context'
-const READING = new RegExp(
-  '^Time sampled while preparing turn (\\d+), step (\\d+): '
-  + '(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:Z|[+-]\\d{2}:\\d{2})\\[[^\\]]+\\])\\n'
-  + '(Browser time zone for this request: .+)\\n'
-  + 'Elapsed since the preceding (model-visible message|step context): '
-  + '(?:unavailable|(?:(?:\\d+d )?(?:\\d+h )?(?:\\d+m )?\\d+s))\\.$',
-)
+const STANDARD_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/
 
 /** Cordis companion plugin name. */
 export const name = 'time-context-invariant'
@@ -92,51 +83,42 @@ function validateReading(
     || typeof blockText !== 'string') {
     fail('time-context messages must contain exactly one text block')
   }
-  const match = READING.exec(blockText)
-  if (match === null) fail('time-context message does not match the durable reading format')
-  const turn = Number(match[1])
-  const step = Number(match[2])
-  if (!Number.isSafeInteger(turn) || turn < 1 || !Number.isSafeInteger(step) || step < 1) {
-    fail('time-context turn and step must be positive safe integers')
-  }
-  const expected = preparationPosition(history, fail)
-  if (turn !== expected.turn || step !== expected.step) {
-    fail(`time-context reading names turn ${turn}/step ${step}, expected turn ${expected.turn}/step ${expected.step}`)
-  }
   const source = event.data.source
   /* v8 ignore next 2 -- replay and dispatch callers select this exact package-owned source before validation. */
   if (source.kind !== 'plugin' || source.plugin !== SOURCE_NAME) {
     fail('time-context source must retain package ownership')
   }
   const sections: unknown = 'sections' in source ? source.sections : undefined
-  const sectionValue: unknown = Array.isArray(sections) ? sections[0] : undefined
-  const section = typeof sectionValue === 'object' && sectionValue !== null
-    ? sectionValue as Record<string, unknown>
+  const memoryValue: unknown = Array.isArray(sections) ? sections[0] : undefined
+  const timeValue: unknown = Array.isArray(sections) ? sections[1] : undefined
+  const memory = typeof memoryValue === 'object' && memoryValue !== null
+    ? memoryValue as Record<string, unknown>
+    : undefined
+  const time = typeof timeValue === 'object' && timeValue !== null
+    ? timeValue as Record<string, unknown>
     : undefined
   if (Object.keys(source).length !== 4
     || source.form !== 'snapshot'
     || !Array.isArray(sections)
-    || sections.length !== 1
-    || section === undefined
-    || Object.keys(section).length !== 2
-    || section.name !== SOURCE_NAME
-    || section.text !== blockText) {
-    fail('time-context source must carry only the exact snapshot text, not request authority')
+    || sections.length !== 2
+    || memory === undefined
+    || time === undefined
+    || Object.keys(memory).length !== 2
+    || Object.keys(time).length !== 2
+    || memory.name !== 'MEM|8'
+    || typeof memory.text !== 'string'
+    || !memory.text.startsWith('MEM|8')
+    || time.name !== SOURCE_NAME
+    || time.text !== blockText.split('\n\n').at(-1)) {
+    fail('time-context source must carry the MEM|8 section and the exact time line')
   }
-  const renderedBrowserContext = match[4]
-  const browserContext = deriveBrowserTimeZoneContext(requestMessages(history, turn))
-  const expectedBrowserContext = renderBrowserTimeZoneContext(browserContext)
-  if (renderedBrowserContext !== expectedBrowserContext) {
-    fail('time-context browser-zone text does not match current-turn user messages')
+  const rendered = time.text
+  if (typeof rendered !== 'string' || !STANDARD_TIME.test(rendered)) {
+    fail('time-context message does not match the standard time format')
   }
-  const baseline = match[5]
-  if ((step === 1) !== (baseline === 'model-visible message')) {
-    fail(`time-context step ${step} uses the wrong elapsed-time baseline ${JSON.stringify(baseline)}`)
-  }
-  const rendered = match[3]
-  /* v8 ignore next -- the preceding fixed regexp always supplies capture group three. */
-  if (rendered === undefined) fail('time-context reading omitted its rendered timestamp')
-  const renderedTime = Date.parse(rendered.replace(/\[[^\]]+\]$/, ''))
+  const position = preparationPosition(history, fail)
+  const browserContext = deriveBrowserTimeZoneContext(requestMessages(history, position.turn))
+  const renderedTime = Date.parse(rendered)
   if (!Number.isFinite(renderedTime) || !Number.isSafeInteger(event.time)
     || event.time < renderedTime) {
     fail('time-context rendered timestamp must parse and not postdate its durable event')
@@ -152,7 +134,7 @@ function validateReading(
     } catch (error: unknown) {
       fail(`time-context browser zone cannot format its durable timestamp: ${String(error)}`)
     }
-    if (rendered !== expectedTimestamp) {
+    if (rendered !== expectedTimestamp.replace(/\[[^\]]+\]$/, '')) {
       fail('time-context rendered timestamp does not match the unique browser zone')
     }
   }

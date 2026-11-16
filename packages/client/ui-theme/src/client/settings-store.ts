@@ -4,19 +4,21 @@
  * reads via props.useStore.
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
-import type { ThemePreference } from '../theme-settings.ts'
+import { DEFAULT_PALETTE, type ThemePreference, type WavePalette } from '../theme-settings.ts'
 
 /** Store state mirrored from the theme snapshot. */
 export interface AppearanceRowState {
   /** Persisted preference (selection state reads this, never the resolved active theme). */
   preference: ThemePreference
+  /** Persisted wave palette. */
+  palette: WavePalette
   /** Service revision; -1 until first sync so revision 0 lands as a change. */
   revision: number
 }
 
 /** Declared action shape giving the exported factory a stable return type. */
 type AppearanceRowActions = {
-  sync: (draft: AppearanceRowState, preference: ThemePreference, revision: number) => void
+  sync: (draft: AppearanceRowState, preference: ThemePreference, palette: WavePalette, revision: number) => void
 }
 
 /**
@@ -25,11 +27,12 @@ type AppearanceRowActions = {
  */
 export function createAppearanceRowStore(): EngineStoreHandle<AppearanceRowState, AppearanceRowActions> {
   return defineStore({
-    init: (): AppearanceRowState => ({ preference: 'system', revision: -1 }),
+    init: (): AppearanceRowState => ({ preference: 'system', palette: DEFAULT_PALETTE, revision: -1 }),
     actions: {
-      sync: (d, preference: ThemePreference, revision: number) => {
+      sync: (d, preference: ThemePreference, palette: WavePalette, revision: number) => {
         if (revision <= d.revision) return
         d.preference = preference
+        d.palette = palette
         d.revision = revision
       },
     },

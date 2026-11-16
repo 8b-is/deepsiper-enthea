@@ -5,24 +5,34 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { injectBootTheme } from './boot-theme.ts'
 import {
-  DEFAULT_PREFERENCE, THEME_SETTINGS_NAMESPACE, ThemeSettingsSchema,
-  type ThemePreference, type ThemeSettings,
+  DEFAULT_PALETTE, DEFAULT_PREFERENCE, THEME_SETTINGS_NAMESPACE, ThemeSettingsSchema,
+  isThemePreference, isWavePalette, type ThemePreference, type ThemeSettings, type WavePalette,
 } from './theme-settings.ts'
 
 export {
-  DEFAULT_PREFERENCE, THEME_PREFERENCE_FIELD, THEME_PREFERENCES, THEME_SETTINGS_NAMESPACE,
-  type ThemePreference, type ThemeSettings,
+  DEFAULT_PALETTE, DEFAULT_PREFERENCE, THEME_PALETTE_FIELD, THEME_PREFERENCE_FIELD,
+  THEME_PREFERENCES, THEME_SETTINGS_NAMESPACE, WAVE_ATTRIBUTE, WAVE_PALETTES,
+  isWavePalette, type ThemePreference, type ThemeSettings, type WavePalette,
 } from './theme-settings.ts'
 
 const THEME_NAMESPACE = settingsNamespace(THEME_SETTINGS_NAMESPACE)
 
-/** Read the registered preference or use the schema default without a settings provider. */
-function readPreference(ctx: Context): ThemePreference {
+/** Boot values embedded in one index response. */
+interface ThemeBoot {
+  /** Built-in light/dark/system preference. */
+  preference: ThemePreference
+  /** Built-in wave palette. */
+  palette: WavePalette
+}
+
+/** Read the registered theme section or use schema defaults without a settings provider. */
+function readBoot(ctx: Context): ThemeBoot {
   const settings = ctx.get('settings')
-  if (settings === undefined) return DEFAULT_PREFERENCE
-  const section = settings.get(THEME_NAMESPACE) as ThemeSettings | undefined
-  if (section === undefined) return DEFAULT_PREFERENCE
-  return section.preference
+  const section = settings?.get(THEME_NAMESPACE) as Partial<ThemeSettings> | undefined
+  return {
+    preference: isThemePreference(section?.preference) ? section.preference : DEFAULT_PREFERENCE,
+    palette: isWavePalette(section?.palette) ? section.palette : DEFAULT_PALETTE,
+  }
 }
 
 /**
@@ -36,7 +46,7 @@ export function apply(ctx: Context): void {
   })
   ctx.inject(['webServer'], (httpCtx) => {
     httpCtx.effect(
-      () => httpCtx.webServer.tapIndex(html => injectBootTheme(html, readPreference(ctx))),
+      () => httpCtx.webServer.tapIndex(html => injectBootTheme(html, readBoot(ctx))),
       'client-ui-theme: initial theme bootstrap',
     )
   })
