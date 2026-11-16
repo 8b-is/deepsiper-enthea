@@ -3,7 +3,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { DefaultTheme, PageData } from 'vitepress'
-import type { ViteDevServer } from 'vite'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import { landingLink, orderedPages, routeLink, sectionSpec, type DocsLocale, type DocsPage, type DocsSidebar } from '../docs.ts'
 import { docsSourceFiles, projectDocs } from '../../scripts/project-doc-site.ts'
@@ -100,15 +99,6 @@ function moduleNav(locale: DocsLocale): DefaultTheme.NavItem[] {
     { text: develop.label, link: landingLink(locale, develop.collection), activeMatch: `^${routePrefix}/develop/` },
     { text: reference.label, link: landingLink(locale, reference.collection), activeMatch: `^${routePrefix}/reference/` },
   ]
-}
-
-function watchCanonicalDocs(server: ViteDevServer): void {
-  const sources = docsSourceFiles()
-  server.watcher.add(sources)
-  server.watcher.on('change', (changed) => {
-    if (!sources.includes(changed)) return
-    projectDocs()
-  })
 }
 
 function escapeVueInterpolation(html: string): string {
@@ -322,7 +312,14 @@ export default withMermaid({
     plugins: [
       {
         name: 'deepseek-harness-doc-projector',
-        configureServer: watchCanonicalDocs,
+        configureServer(server) {
+          const sources = docsSourceFiles()
+          server.watcher.add(sources)
+          server.watcher.on('change', (changed) => {
+            if (!sources.includes(changed)) return
+            projectDocs()
+          })
+        },
       },
     ],
   },
