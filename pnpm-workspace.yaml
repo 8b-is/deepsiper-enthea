@@ -73,3 +73,8 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch
+
+nodeLinker: hoisted
+supportedArchitectures:
+  os: [current, win32]
+  cpu: [current, x64]
